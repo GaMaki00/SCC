@@ -40,8 +40,8 @@ if excel_file and pdf_file:
                             if len(nums) >= 2:
                                 pdf_data.append({
                                     'ID': student_id,
-                                    'คะแนน_PDF': nums[8]
-                                    'เกรด_PDF': nums[9] 
+                                    'คะแนน_PDF': nums[-3] if len(nums) >= 3 else nums[-2],
+                                    'เกรด_PDF': nums[-2] if len(nums) >= 3 else nums[-1]
                                 })
             df_pdf_all = pd.DataFrame(pdf_data).drop_duplicates(subset=['ID'])
 
