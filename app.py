@@ -156,7 +156,6 @@ if excel_file and pdf_file:
                             """
     
                         st.markdown(display_html, unsafe_allow_html=True)
-                        )
                     # ปุ่มดาวน์โหลด
                     output = io.BytesIO()
                     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
