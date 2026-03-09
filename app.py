@@ -89,7 +89,47 @@ if excel_file and pdf_file:
 
                     # แสดงตาราง
                     st.dataframe(df_final, use_container_width=True)
+import io
 
+                    # 1. เตรียม Buffer สำหรับเก็บไฟล์ Excel ในหน่วยความจำ
+                    buffer = io.BytesIO()
+                    
+                    # 2. สร้าง Excel Writer
+                    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                        df_final.to_excel(writer, index=True, sheet_name=room_name)
+                        
+                        workbook  = writer.book
+                        worksheet = writer.sheets[room_name]
+                        
+                        # กำหนดสี (Format)
+                        green_fmt  = workbook.add_format({'bg_color': '#C6EFCE', 'border': 1})
+                        red_fmt    = workbook.add_format({'bg_color': '#FFC7CE', 'border': 1})
+                        yellow_fmt = workbook.add_format({'bg_color': '#FFEB9C', 'border': 1})
+
+                        # ลูปใส่สีในไฟล์ Excel ตามเงื่อนไข
+                        for row_num in range(len(df_final)):
+                            row_data = df_final.iloc[row_num]
+                            try:
+                                s_ex = float(str(row_data['คะแนน_Excel']).replace(',', ''))
+                                s_pdf = float(str(row_data['คะแนน_PDF']).replace(',', ''))
+                                if s_ex == s_pdf:
+                                    current_fmt = green_fmt
+                                else:
+                                    current_fmt = red_fmt
+                            except:
+                                current_fmt = yellow_fmt
+                            
+                            # พ่นสีลงไปในแถวนั้นๆ (คอลัมน์ A ถึง G)
+                            worksheet.set_row(row_num + 1, None, current_fmt)
+
+                    # 3. สร้างปุ่มดาวน์โหลดสำหรับห้องนี้
+                    st.download_button(
+                        label=f"📥 ดาวน์โหลดไฟล์สรุป {room_name} (Excel)",
+                        data=buffer.getvalue(),
+                        file_name=f"สรุปคะแนน_{room_name}.xlsx",
+                        mime="application/vnd.ms-excel",
+                        key=f"dl_{room_name}" # ใส่ key กันปุ่มซ้ำ
+                    )
                     # สรุปท้ายห้อง
                     st.markdown("---")
                     c1, c2, c3 = st.columns(3)
