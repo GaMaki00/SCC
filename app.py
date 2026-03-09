@@ -136,10 +136,10 @@ if excel_file and pdf_file:
                     with c2: st.metric("ร้อยละ Excel", f"{res['ex_avg']:.2f}")
                     with c3: 
                         diff = pdf_avg - excel_avg
-                        if abs(diff) > 0.02:
-                            status_color = "inverse"
-                        else:
+                        if abs(diff) <= 0.01:
                             status_color = "normal"
+                        else:
+                            status_color = "inverse"
 
                         st.metric(
                             label="ร้อยละ PDF (คำนวณ)",
