@@ -77,7 +77,7 @@ if excel_file and pdf_file:
                 pdf_scores = pd.to_numeric(df_final['คะแนน_PDF'].astype(str).str.replace(',', ''), errors='coerce').dropna()
                 pdf_avg = pdf_scores.mean() if not pdf_scores.empty else 0
                 
-                status = "✅ ตรงเป๊ะ" if abs(excel_avg - pdf_avg) <= 0.01 else "⚠️ ปัดเศษ" if abs(excel_avg - pdf_avg) <= 0.05 else "❌ ตรวจสอบ"
+                status = "✅ ตรงเป๊ะ" if abs(excel_avg - pdf_avg) <= 0.00 else "❌ ตรวจสอบ"
                 
                 summary_dashboard.append({
                     "ห้อง": room_name,
