@@ -96,7 +96,7 @@ if excel_file and pdf_file:
                     pdf_room_text = "\n".join(all_pages_text[page_start:page_end])
                     
                     # ใช้ Regex ค้นหาคำเต็มๆ
-                    match = re.search(r"(?:ผผการเรียนเฉลี่ยรผอยละ)\s*[:]*\s*(\d+\.\d+)", pdf_room_text)
+                    match = re.search(r"(?:รผอยละ|ะลอยผร|ร้อยละ).{0,30}(\d+\.\d+)", pdf_room_text)
                     pdf_total = match.group(1) if match else "ไม่พบข้อมูล"
 
                     with col_sum1:
