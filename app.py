@@ -22,51 +22,49 @@ if excel_file and pdf_file:
             pdf_data = []
             with pdfplumber.open(pdf_file) as pdf:
                 for page in pdf.pages:
-                    # ดึงคำออกมาพร้อมตำแหน่ง (X, Y)
                     words = page.extract_words()
                     
-                    # เราจะหาเลขประจำตัว 5 หลักก่อน
-                    for i, word in enumerate(words):
-                        text = word['text'].strip()
+                    # จับกลุ่มคำตามบรรทัด (Y)
+                    lines_dict = {}
+                    for w in words:
+                        y = round(w['top'], 0) # ปัดเศษพิกัด Y ให้เท่ากันในบรรทัดเดียว
+                        if y not in lines_dict: lines_dict[y] = []
+                        lines_dict[y].append(w)
+                    
+                    for y in sorted(lines_dict.keys()):
+                        row_words = sorted(lines_dict[y], key=lambda x: x['x0'])
+                        row_text_list = [w['text'].strip() for w in row_words]
                         
-                        # ถ้าเจอเลข 5 หลัก (ID)
-                        if text.isdigit() and len(text) == 5:
-                            student_id = text
-                            score_val = "0"
-                            grade_val = "0"
+                        # รวมเป็นข้อความเดียวเพื่อหา ID
+                        full_row_text = "".join(row_text_list)
+                        
+                        # ค้นหาเลขประจำตัว 5 หลัก (ที่อาจมีเลขอื่นติดข้างหน้า เช่น เลขที่)
+                        id_match = re.search(r'(\d{5})', full_row_text)
+                        
+                        if id_match:
+                            student_id = id_match.group(1)
                             
-                            # สแกนคำที่อยู่ถัดไปในบรรทัดเดียวกัน (พิกัด Y ใกล้กัน)
-                            # ปกติคะแนนรวมจะอยู่ห่างจาก ID ไปทางขวา (X) ประมาณหนึ่ง
-                            current_y = word['top']
+                            # กรองเฉพาะที่เป็นตัวเลขในบรรทัดนั้น
+                            # ใน ปพ. คะแนนรวมจะเป็นตัวเลขรองสุดท้าย และเกรดคือตัวเลขสุดท้ายเสมอ
+                            numeric_values = []
+                            for w in row_words:
+                                # ดึงเฉพาะคำที่เป็นตัวเลขหรือทศนิยม
+                                val = w['text'].replace(',', '')
+                                if re.match(r'^\d+\.?\d*$', val):
+                                    numeric_values.append(val)
                             
-                            row_words = [w for w in words if abs(w['top'] - current_y) < 3]
-                            # เรียงจากซ้ายไปขวา
-                            row_words.sort(key=lambda x: x['x0'])
-                            
-                            # จาก ID (ตัวที่ 1 ในตาราง) 
-                            # คะแนนรวมมักจะเป็นตัวเลขลำดับที่ 9-10 ของบรรทัด
-                            # เราจะใช้การกรองหาตัวเลขที่อยู่ในช่วงพิกัด X ของคอลัมน์ 'รวม' และ 'เกรด'
-                            try:
-                                # ค้นหาตัวเลขที่อยู่หลังชื่อ-นามสกุล
-                                # ใน ปพ. โรงเรียนเรา คะแนนรวมจะอยู่คอลัมน์ท้ายๆ
-                                # เราจะดึงตัวเลขทศนิยมที่อยู่ก่อนตัวเลขเกรด
-                                numeric_words = [w['text'] for w in row_words if re.match(r'^\d+\.?\d*$', w['text'])]
+                            if len(numeric_values) >= 5:
+                                # มั่นใจได้ว่า 2 ตัวสุดท้ายคือ รวม และ เกรด
+                                score_val = numeric_values[-2]
+                                grade_val = numeric_values[-1]
                                 
-                                if len(numeric_words) >= 5:
-                                    # คะแนนรวม (ช่องที่ 9 ของแถวข้อมูล)
-                                    score_val = numeric_words[8] 
-                                    # เกรด (ช่องที่ 10 ของแถวข้อมูล)
-                                    grade_val = numeric_words[9]
-                                    
-                                    pdf_data.append({
-                                        'ID': student_id,
-                                        'คะแนน_PDF': score_val,
-                                        'เกรด_PDF': grade_val
-                                    })
-                            except:
-                                pass
+                                pdf_data.append({
+                                    'ID': student_id,
+                                    'คะแนน_PDF': score_val,
+                                    'เกรด_PDF': grade_val
+                                })
             
-            # ลบข้อมูลซ้ำและจัดการ DataFrame
+            # ลบข้อมูลซ้ำ (กรณีสแกนเจอซ้ำในหน้าเดิม)
             df_pdf_all = pd.DataFrame(pdf_data).drop_duplicates(subset=['ID'])
 
             # --- 2. เตรียมข้อมูล Excel ---
