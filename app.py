@@ -52,8 +52,8 @@ if excel_file and pdf_file:
                                 if len(nums) >= 5:
                                     pdf_data.append({
                                         'ID': student_id,
-                                        'คะแนน_PDF': nums[-2],
-                                        'เกรด_PDF': nums[-1]
+                                        'คะแนน_PDF': nums[8],
+                                        'เกรด_PDF': nums[9]
                                     })
             
             # ลบข้อมูลซ้ำ
