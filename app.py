@@ -91,7 +91,7 @@ if excel_file and pdf_file:
                     pdf_room_text = "\n".join(all_pages_text[page_start:page_end])
                     
                     # ค้นหาคำว่า ผลการเรียนเฉลี่ยร้อยละ หรือ ร้อยละ
-                    match = re.search(r"(?:เฉลี่ยร้อยละ|ร้อยละ)\s*(\d+\.\d+)", pdf_room_text)
+                    match = re.search(r"(?:ผลการเรียนเฉลี่ยร้อยละ)\s*(\d+\.\d+)", pdf_room_text)
                     pdf_total = match.group(1) if match else "ไม่พบข้อมูล"
 
                     with col_sum1:
