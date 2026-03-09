@@ -22,49 +22,41 @@ if excel_file and pdf_file:
             pdf_data = []
             with pdfplumber.open(pdf_file) as pdf:
                 for page in pdf.pages:
-                    words = page.extract_words()
+                    # ใช้การตั้งค่าตารางแบบเน้นข้อความเป็นหลัก (ไม่สนเส้นตารางที่จางหรือขาด)
+                    table_settings = {
+                        "vertical_strategy": "text", 
+                        "horizontal_strategy": "text",
+                        "snap_tolerance": 3,
+                    }
                     
-                    # จับกลุ่มคำตามบรรทัด (Y)
-                    lines_dict = {}
-                    for w in words:
-                        y = round(w['top'], 0) # ปัดเศษพิกัด Y ให้เท่ากันในบรรทัดเดียว
-                        if y not in lines_dict: lines_dict[y] = []
-                        lines_dict[y].append(w)
+                    tables = page.extract_tables(table_settings=table_settings)
                     
-                    for y in sorted(lines_dict.keys()):
-                        row_words = sorted(lines_dict[y], key=lambda x: x['x0'])
-                        row_text_list = [w['text'].strip() for w in row_words]
-                        
-                        # รวมเป็นข้อความเดียวเพื่อหา ID
-                        full_row_text = "".join(row_text_list)
-                        
-                        # ค้นหาเลขประจำตัว 5 หลัก (ที่อาจมีเลขอื่นติดข้างหน้า เช่น เลขที่)
-                        id_match = re.search(r'(\d{5})', full_row_text)
-                        
-                        if id_match:
-                            student_id = id_match.group(1)
+                    for table in tables:
+                        for row in table:
+                            # กรองแถวที่มีข้อมูล (ปกติ ID อยู่คอลัมน์ 1 หรือ 0)
+                            # เราจะเดินหา ID 5 หลักในแถวนี้
+                            row_cleaned = [str(cell).strip() if cell else "" for cell in row]
                             
-                            # กรองเฉพาะที่เป็นตัวเลขในบรรทัดนั้น
-                            # ใน ปพ. คะแนนรวมจะเป็นตัวเลขรองสุดท้าย และเกรดคือตัวเลขสุดท้ายเสมอ
-                            numeric_values = []
-                            for w in row_words:
-                                # ดึงเฉพาะคำที่เป็นตัวเลขหรือทศนิยม
-                                val = w['text'].replace(',', '')
-                                if re.match(r'^\d+\.?\d*$', val):
-                                    numeric_values.append(val)
+                            # หา ID 5 หลัก
+                            student_id = ""
+                            for cell in row_cleaned:
+                                if cell.isdigit() and len(cell) == 5:
+                                    student_id = cell
+                                    break
                             
-                            if len(numeric_values) >= 5:
-                                # มั่นใจได้ว่า 2 ตัวสุดท้ายคือ รวม และ เกรด
-                                score_val = numeric_values[-2]
-                                grade_val = numeric_values[-1]
+                            if student_id:
+                                # กรองเฉพาะตัวเลขในแถวนี้ เพื่อหาคะแนนและเกรด
+                                # ใน ปพ. คะแนนรวมมักอยู่รองสุดท้าย และเกรดอยู่สุดท้าย
+                                nums = [c for c in row_cleaned if re.match(r'^\d+\.?\d*$', c)]
                                 
-                                pdf_data.append({
-                                    'ID': student_id,
-                                    'คะแนน_PDF': score_val,
-                                    'เกรด_PDF': grade_val
-                                })
+                                if len(nums) >= 5:
+                                    pdf_data.append({
+                                        'ID': student_id,
+                                        'คะแนน_PDF': nums[-2],
+                                        'เกรด_PDF': nums[-1]
+                                    })
             
-            # ลบข้อมูลซ้ำ (กรณีสแกนเจอซ้ำในหน้าเดิม)
+            # ลบข้อมูลซ้ำ
             df_pdf_all = pd.DataFrame(pdf_data).drop_duplicates(subset=['ID'])
 
             # --- 2. เตรียมข้อมูล Excel ---
