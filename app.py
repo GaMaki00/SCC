@@ -19,36 +19,36 @@ with col2:
 if excel_file and pdf_file:
     if st.button("🚀 เริ่มประมวลผลและนับจำนวนคน"):
         try:
-            # --- 1. อ่านข้อมูล PDF ทั้งหมด (เปลี่ยนเป็นวิธีสแกนบรรทัดต่อบรรทัด) ---
             pdf_data = []
             with pdfplumber.open(pdf_file) as pdf:
                 for page in pdf.pages:
-                    # ดึงข้อมูลจากตาราง (วิธีหลัก)
-                    tables = page.extract_tables()
+                    # 1. ดึงจากตารางแบบบังคับทิศทาง
+                    tables = page.extract_tables(table_settings={
+                        "vertical_strategy": "text", 
+                        "horizontal_strategy": "text",
+                    })
                     for table in tables:
                         for row in table:
-                            # กรองแถวที่มีข้อมูลคะแนน (คอลัมน์ที่ 1=ID, 9=คะแนน, 10=เกรด)
                             if len(row) > 10:
                                 s_id = str(row[1]).strip()
-                                if s_id.isdigit() and len(s_id) >= 4:
+                                # ถ้าเจอเลขประจำตัว 5 หลัก
+                                if s_id.isdigit() and len(s_id) == 5:
                                     pdf_data.append({
                                         'ID': s_id,
                                         'คะแนน_PDF': row[9],
                                         'เกรด_PDF': row[10]
                                     })
                     
-                    # วิธีสำรอง: ดึงข้อความดิบ (เผื่อตารางหน้า 2 มันแตก)
+                    # 2. เก็บตกด้วยการสแกนตัวอักษรรายบรรทัด (ป้องกันหัวตารางบัง)
                     text = page.extract_text()
                     if text:
-                        # หาแพทเทิร์น: เลขประจำตัว(5หลัก) + ช่องว่าง + ชื่อ + ตัวเลขคะแนน
-                        # ส่วนนี้จะช่วยเก็บคนที่หลุดจากตาราง
                         lines = text.split('\n')
                         for line in lines:
-                            # Regex หาเลขประจำตัว 5 หลัก และคะแนนช่วงท้ายบรรทัด
-                            match = re.search(r'^(\d{5})\s+.*?\s+(\d+\.?\d*)\s+([0-4]\.?[0-5]*)', line)
+                            # ปรับ Regex ให้หา: เลข 5 หลัก (ID) + ชื่อ + คะแนน + เกรด
+                            # โดยไม่สนว่าจะมีอะไรนำหน้า (เช่น เลข 1 ของห้อง)
+                            match = re.search(r'(\d{5})\s+.*?\s+(\d+\.?\d*)\s+([0-4]\.?[0-5]*)', line)
                             if match:
                                 s_id = match.group(1)
-                                # เช็คว่าไม่ซ้ำกับที่ดึงจากตารางไปแล้ว
                                 if not any(d['ID'] == s_id for d in pdf_data):
                                     pdf_data.append({
                                         'ID': s_id,
