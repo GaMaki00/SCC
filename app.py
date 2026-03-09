@@ -71,10 +71,11 @@ if excel_file and pdf_file:
                     # แสดงตารางพร้อมไฮไลท์สีบนเว็บ
                     def apply_highlight(row):
                         try:
-                            s_ex1 = float(str(row['คะแนน_Excel']).replace(',', ''))
-                            s_ex2 = float(str(row['เกรด_Excel']).replace(',', ''))
-                            s_pdf1 = float(str(row['คะแนน_PDF']).replace(',', ''))
-                            s_pdf2 = float(str(row['เกรด_PDF']).replace(',', ''))
+                            s_ex1 = float(str(row['คะแนน_Excel']).replace(',', '').strip())
+                            s_ex2 = float(str(row['เกรด_Excel']).replace(',', '').strip())
+                            
+                            s_pdf1 = float(str(row['คะแนน_PDF']).replace(',', '').strip())
+                            s_pdf2 = float(str(row['เกรด_PDF']).replace(',', '').strip())
                             if s_ex1 == s_pdf1 and s_ex2 == s_pdf2:
                                 bg = 'background-color: #C6EFCE'
                             else
