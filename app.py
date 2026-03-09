@@ -113,3 +113,12 @@ if excel_file and pdf_file:
                         st.metric(f"ร้อยละ {room_name} (Excel)", excel_total)
                     with col_sum2:
                         st.metric(f"ร้อยละ {room_name} (PDF)", pdf_total)
+if str(excel_total) == str(pdf_total):
+                        st.success("✅ ค่าร้อยละตรงกัน")
+                    else:
+                        st.error("❌ ค่าร้อยละไม่ตรงกัน!")
+
+            st.success("✅ ตรวจสอบครบทุกห้องเรียบร้อยแล้ว!")
+
+        except Exception as e:
+            st.error(f"เกิดข้อผิดพลาด: {e}")
