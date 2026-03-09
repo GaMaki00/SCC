@@ -77,7 +77,7 @@ if excel_file and pdf_file:
                 pdf_scores = pd.to_numeric(df_final['คะแนน_PDF'].astype(str).str.replace(',', ''), errors='coerce').dropna()
                 pdf_avg = pdf_scores.mean() if not pdf_scores.empty else 0
                 
-                status = "✅ ตรงกัน" if (count_ex == count_pdf and abs(excel_avg - pdf_avg) <= 0.02) else "❌ ตรวจสอบ"
+                status = "✅ ตรงเป๊ะ" if abs(excel_avg - pdf_avg) <= 0.01 else "⚠️ ปัดเศษ" if abs(excel_avg - pdf_avg) <= 0.05 else "❌ ตรวจสอบ"
                 
                 summary_dashboard.append({
                     "ห้อง": room_name,
@@ -136,10 +136,10 @@ if excel_file and pdf_file:
                     with c2: st.metric("ร้อยละ Excel", f"{res['ex_avg']:.2f}")
                     with c3: 
                         diff = pdf_avg - excel_avg
-                        if abs(diff) <= 0.02:
-                            status_color = "normal"
-                        else:
+                        if abs(diff) > 0.02:
                             status_color = "inverse"
+                        else:
+                            status_color = "normal"
 
                         st.metric(
                             label="ร้อยละ PDF (คำนวณ)",
