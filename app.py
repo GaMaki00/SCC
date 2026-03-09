@@ -6,7 +6,7 @@ import io
 
 st.set_page_config(page_title="ระบบตรวจคะแนน ปพ. ครูโอม", layout="wide")
 
-st.title("📊 ระบบตรวจสอบคะแนน (ดึงข้อมูลละเอียด + โหลด Excel)")
+st.title("📊 ระบบตรวจสอบคะแนน (เวอร์ชันปิดจ๊อบสมบูรณ์)")
 
 # 1. ส่วนการอัปโหลดไฟล์
 col1, col2 = st.columns(2)
@@ -16,9 +16,9 @@ with col2:
     pdf_file = st.file_uploader("2. เลือกไฟล์ PDF", type=['pdf'])
 
 if excel_file and pdf_file:
-    if st.button("🚀 เริ่มประมวลผล"):
+    if st.button("🚀 เริ่มประมวลผลทั้งหมด"):
         try:
-            # --- 1. อ่านข้อมูลจาก PDF (พิกัด X-Y) ---
+            # --- 1. อ่านข้อมูล PDF (พิกัด X-Y แม่นยำที่สุด) ---
             pdf_data = []
             with pdfplumber.open(pdf_file) as pdf:
                 for page in pdf.pages:
@@ -35,6 +35,7 @@ if excel_file and pdf_file:
                         match_id = re.search(r'(\d{5})', text_line)
                         if match_id:
                             student_id = match_id.group(1)
+                            # กรองเลขครึ่งหลังหน้ากระดาษ (คะแนน/เกรด)
                             nums = [w['text'] for w in row if re.match(r'^\d+\.?\d*$', w['text']) and w['x0'] > 250]
                             if len(nums) >= 2:
                                 pdf_data.append({
@@ -44,29 +45,30 @@ if excel_file and pdf_file:
                                 })
             df_pdf_all = pd.DataFrame(pdf_data).drop_duplicates(subset=['ID'])
 
-            # --- 2. อ่าน Excel (ดึงคนแรกกลับมา) ---
+            # --- 2. อ่านข้อมูล Excel (แยกห้อง) ---
             df_raw = pd.read_excel(excel_file, header=None)
             room_indices = df_raw[df_raw.iloc[:, 0].astype(str).str.contains('ม.1/', na=False)].index.tolist()
             room_indices.append(len(df_raw))
 
+            # --- 3. ลูปประมวลผลทีละห้อง ---
             for i in range(len(room_indices) - 1):
                 start, end = room_indices[i], room_indices[i+1]
                 df_room_chunk = df_raw.iloc[start:end].reset_index(drop=True)
                 room_name = str(df_room_chunk.iloc[0, 0]).strip()
 
                 with st.expander(f"📂 ผลการตรวจสอบ: {room_name}", expanded=True):
-                    # iloc[2:] เพื่อดึงเลขที่ 1
+                    # ดึงข้อมูลนักเรียน (iloc[2:] เพื่อเก็บคนแรก)
                     df_students = df_room_chunk.iloc[2:].copy()
                     df_students = df_students[df_students.iloc[:, 1].astype(str).str.strip().str.isdigit()]
                     df_students = df_students.iloc[:, [1, 3, 4, 17, 18]]
                     df_students.columns = ['ID', 'ชื่อ', 'นามสกุล', 'คะแนน_Excel', 'เกรด_Excel']
                     df_students['ID'] = df_students['ID'].astype(str).str.strip().str.replace('.0', '', regex=False)
 
-                    # Merge & Re-index
+                    # Merge ข้อมูลและปรับลำดับ
                     df_final = pd.merge(df_students, df_pdf_all, on='ID', how='left')
                     df_final.index = df_final.index + 1
 
-                    # ฟังก์ชันไฮไลท์ในหน้าเว็บ
+                    # แสดงตารางพร้อมไฮไลท์สีบนเว็บ
                     def apply_highlight(row):
                         try:
                             s_ex = float(str(row['คะแนน_Excel']).replace(',', ''))
@@ -77,12 +79,30 @@ if excel_file and pdf_file:
 
                     st.dataframe(df_final.style.apply(apply_highlight, axis=1), use_container_width=True)
 
-                    # --- ส่วนสร้างไฟล์ Excel ให้ดาวน์โหลด ---
+                    # --- ส่วนคำนวณร้อยละและ Metric ---
+                    st.markdown("---")
+                    c1, c2, c3 = st.columns(3)
+                    
+                    count_ex, count_pdf = len(df_final), df_final['คะแนน_PDF'].notna().sum()
+                    with c1:
+                        st.metric("จำนวนนักเรียน (Excel / PDF)", f"{count_ex} / {count_pdf}")
+
+                    summary_row = df_room_chunk[df_room_chunk.apply(lambda x: x.astype(str).str.contains('ร้อยละ').any(), axis=1)]
+                    excel_avg = float(summary_row.iloc[0, 17]) if not summary_row.empty else 0
+                    with c2:
+                        st.metric("ร้อยละ Excel", f"{excel_avg:.2f}")
+
+                    pdf_scores = pd.to_numeric(df_final['คะแนน_PDF'].astype(str).str.replace(',', ''), errors='coerce').dropna()
+                    pdf_avg = pdf_scores.mean() if not pdf_scores.empty else 0
+                    with c3:
+                        diff = pdf_avg - excel_avg
+                        st.metric("ร้อยละ PDF (คำนวณ)", f"{pdf_avg:.2f}", delta=f"{diff:.2f}", delta_color="normal" if abs(diff) <= 0.02 else "inverse")
+
+                    # --- ส่วนปุ่มดาวน์โหลด Excel ---
                     output = io.BytesIO()
                     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                         df_final.to_excel(writer, index=True, sheet_name='Summary')
                         workbook, worksheet = writer.book, writer.sheets['Summary']
-                        # Format สี
                         green = workbook.add_format({'bg_color': '#C6EFCE', 'border': 1})
                         red   = workbook.add_format({'bg_color': '#FFC7CE', 'border': 1})
                         
@@ -95,66 +115,14 @@ if excel_file and pdf_file:
                             worksheet.set_row(row_num + 1, None, fmt)
                     
                     st.download_button(
-                        label=f"📥 ดาวน์โหลด Excel {room_name}",
-                        data=output.getvalue(),
-                        file_name=f"ตรวจคะแนน_{room_name}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key=f"btn_{i}"
-                    )
-
-            st.success("✅ ประมวลผลสำเร็จ!")
-
-        except Exception as e:
-            st.error(f"เกิดข้อผิดพลาด: {e}")
-            # --- ส่วนคำนวณร้อยละสรุป (เพิ่มกลับเข้ามาให้แล้วครับ) ---
-                    st.markdown("---")
-                    c1, c2, c3 = st.columns(3)
-                    
-                    # 1. จำนวนนักเรียน
-                    count_excel = len(df_final)
-                    count_pdf = df_final['คะแนน_PDF'].notna().sum()
-                    with c1:
-                        st.metric("จำนวนนักเรียน (Excel / PDF)", f"{count_excel} / {count_pdf}")
-
-                    # 2. ร้อยละจาก Excel (ดึงจากแถวที่มีคำว่าร้อยละ)
-                    summary_row = df_room_chunk[df_room_chunk.apply(lambda x: x.astype(str).str.contains('ร้อยละ').any(), axis=1)]
-                    excel_avg = float(summary_row.iloc[0, 17]) if not summary_row.empty else 0
-                    with c2:
-                        st.metric(f"ร้อยละ Excel", f"{excel_avg:.2f}")
-
-                    # 3. ร้อยละ PDF (คำนวณใหม่จากเด็กรายคน)
-                    pdf_scores = pd.to_numeric(df_final['คะแนน_PDF'].astype(str).str.replace(',', ''), errors='coerce').dropna()
-                    pdf_avg = pdf_scores.mean() if not pdf_scores.empty else 0
-                    with c3:
-                        # เช็คความต่าง ถ้าไม่เกิน 0.02 ให้ถือว่าปกติ (สีเขียว)
-                        diff = pdf_avg - excel_avg
-                        color = "normal" if abs(diff) <= 0.02 else "inverse"
-                        st.metric(f"ร้อยละ PDF (คำนวณ)", f"{pdf_avg:.2f}", delta=f"{diff:.2f}", delta_color=color)
-
-                    # --- ส่วนสร้างไฟล์ Excel ให้ดาวน์โหลด (มีสีไฮไลท์) ---
-                    output = io.BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        df_final.to_excel(writer, index=True, sheet_name='Summary')
-                        workbook = writer.book
-                        worksheet = writer.sheets['Summary']
-                        
-                        # กำหนดสี
-                        green = workbook.add_format({'bg_color': '#C6EFCE', 'border': 1})
-                        red   = workbook.add_format({'bg_color': '#FFC7CE', 'border': 1})
-                        
-                        for row_num in range(len(df_final)):
-                            try:
-                                val_ex = float(df_final.iloc[row_num]['คะแนน_Excel'])
-                                val_pdf = float(df_final.iloc[row_num]['คะแนน_PDF'])
-                                fmt = green if val_ex == val_pdf else red
-                            except:
-                                fmt = None
-                            worksheet.set_row(row_num + 1, None, fmt)
-                    
-                    st.download_button(
                         label=f"📥 ดาวน์โหลดไฟล์สรุป {room_name}",
                         data=output.getvalue(),
                         file_name=f"ตรวจคะแนน_{room_name}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key=f"btn_dl_{i}"
                     )
+
+            st.success("✅ ประมวลผลสำเร็จครบทุกห้องแล้ว!")
+
+        except Exception as e:
+            st.error(f"เกิดข้อผิดพลาด: {e}")
