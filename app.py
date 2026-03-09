@@ -75,41 +75,47 @@ if excel_file and pdf_file:
 
                     st.dataframe(df_final.style.apply(highlight_logic, axis=1), use_container_width=True)
 
-                    # --- ส่วนเช็คค่าสรุปท้ายตาราง ---
-                    st.markdown("---")
-                    col_sum1, col_sum2 = st.columns(2)
+                 st.markdown("---")
+                    col_sum1, col_sum2, col_sum3 = st.columns(3)
                     
-                    # หาใน Excel
+                    # 1. ดึงจาก Excel (แถวที่เขียนว่าร้อยละ)
                     summary_row = df_room_chunk[df_room_chunk.apply(lambda x: x.astype(str).str.contains('ร้อยละ').any(), axis=1)]
                     if not summary_row.empty:
-                        raw_val = summary_row.iloc[0, 17]
                         try:
-                            excel_total = f"{float(raw_val):.2f}"
+                            excel_val = float(summary_row.iloc[0, 17])
+                            excel_total_str = f"{excel_val:.2f}"
                         except:
-                            excel_total = str(raw_val)
+                            excel_total_str = str(summary_row.iloc[0, 17])
                     else:
-                        excel_total = "N/A"
+                        excel_total_str = "N/A"
                     
-                    # หาใน PDF (นับทีละ 2 หน้าต่อห้อง)
-                    page_start = i * 2
-                    page_end = page_start + 2
-                    pdf_room_text = "\n".join(all_pages_text[page_start:page_end])
+                    # 2. คำนวณจาก PDF เอง (Mean of all scores in this room)
+                    # แปลงคะแนน PDF ให้เป็นตัวเลข
+                    pdf_scores_numeric = pd.to_numeric(df_final['คะแนน_PDF'].astype(str).str.replace(',', ''), errors='coerce')
+                    pdf_scores_numeric = pdf_scores_numeric.dropna()
                     
-                    # ใช้ Regex ค้นหาคำเต็มๆ
-                    match = re.search(r"(?:ผผการเรียนเฉลี่ยรผอยละ|รผอยละ|ะลอยผร|ร้อยละ).{0,30}(\d+\.\d+)", pdf_room_text)
-                    pdf_total = match.group(1) if match else "ไม่พบข้อมูล"
+                    if not pdf_scores_numeric.empty:
+                        pdf_calc_avg = pdf_scores_numeric.mean()
+                        pdf_total_str = f"{pdf_calc_avg:.2f}"
+                    else:
+                        pdf_total_str = "0.00"
 
                     with col_sum1:
-                        st.metric(f"ร้อยละ {room_name} (Excel)", excel_total)
+                        st.metric(f"ร้อยละ {room_name} (Excel)", excel_total_str)
                     with col_sum2:
-                        st.metric(f"ร้อยละ {room_name} (PDF)", pdf_total)
-                    
-                    if str(excel_total) == str(pdf_total):
-                        st.success("✅ ค่าร้อยละตรงกัน")
-                    else:
-                        st.error("❌ ค่าร้อยละไม่ตรงกัน!")
+                        st.metric(f"ร้อยละ {room_name} (PDF - คำนวณให้ใหม่)", pdf_total_str)
+                    with col_sum3:
+                        # ตรวจสอบความถูกต้อง (ยอมให้ต่างกันได้เล็กน้อยจากทศนิยม 0.01)
+                        try:
+                            diff = abs(float(excel_total_str) - float(pdf_total_str))
+                            if diff <= 0.01:
+                                st.success("✅ ค่าเฉลี่ยตรงกัน")
+                            else:
+                                st.error(f"❌ ต่างกัน {diff:.2f}")
+                        except:
+                            st.warning("⚠️ ไม่สามารถเทียบค่าได้")
 
-            st.success("✅ ตรวจสอบครบทุกห้องเรียบร้อยแล้ว!")
+            st.success("✅ ตรวจสอบและคำนวณครบทุกห้องแล้วครับครูโอม!")
 
         except Exception as e:
             st.error(f"เกิดข้อผิดพลาด: {e}")
