@@ -72,7 +72,7 @@ if excel_file and pdf_file:
                 room_name = str(df_room_chunk.iloc[0, 0]).strip()
 
                 with st.expander(f"📂 ผลการตรวจสอบ: {room_name}", expanded=True):
-                    df_students = df_room_chunk.iloc[3:].copy()
+                    df_students = df_room_chunk.iloc[2:].copy()
                     df_students = df_students[df_students.iloc[:, 1].astype(str).str.strip().str.isdigit()]
                     df_students = df_students.iloc[:, [1, 3, 4, 17, 18]]
                     df_students.columns = ['ID', 'ชื่อ', 'นามสกุล', 'คะแนน_Excel', 'เกรด_Excel']
