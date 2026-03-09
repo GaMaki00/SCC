@@ -72,7 +72,9 @@ if excel_file and pdf_file:
                     def apply_highlight(row):
                         try:
                             s_ex = float(str(row['คะแนน_Excel']).replace(',', ''))
+                            s_ex = float(str(row['เกรด_Excel']).replace(',', ''))
                             s_pdf = float(str(row['คะแนน_PDF']).replace(',', ''))
+                            s_pdf = float(str(row['เกรด_PDF']).replace(',', ''))
                             bg = 'background-color: #C6EFCE' if s_ex == s_pdf else 'background-color: #FFC7CE'
                         except: bg = 'background-color: #FFEB9C'
                         return [bg] * len(row)
