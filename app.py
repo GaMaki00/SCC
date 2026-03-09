@@ -6,7 +6,8 @@ import io
 
 st.set_page_config(page_title="ระบบตรวจคะแนน ปพ. ครูโอม", layout="wide")
 
-st.title("📊 ระบบตรวจสอบคะแนน (เวอร์ชันแก้ไข Syntax)")
+st.title("📊 ระบบตรวจสอบคะแนน (คำนวณร้อยละ PDF อัตโนมัติ)")
+st.info("💡 ระบบจะคำนวณหาค่าร้อยละเฉลี่ยจากคะแนนเด็กรายคนใน PDF เพื่อเทียบกับ Excel โดยตรง")
 
 # 1. ส่วนการอัปโหลดไฟล์
 col1, col2 = st.columns(2)
@@ -16,20 +17,17 @@ with col2:
     pdf_file = st.file_uploader("2. เลือกไฟล์ PDF", type=['pdf'])
 
 if excel_file and pdf_file:
-    if st.button("🚀 เริ่มประมวลผล"):
+    if st.button("🚀 เริ่มประมวลผลและคำนวณ"):
         try:
             # --- 1. อ่านข้อมูลรายคนจาก PDF ทั้งหมด ---
             pdf_list = []
-            all_pages_text = []
             with pdfplumber.open(pdf_file) as pdf:
                 for page in pdf.pages:
-                    text = page.extract_text()
-                    all_pages_text.append(text if text else "")
-                    
                     table = page.extract_table()
                     if table:
                         for row in table:
-                            if len(row) > 1 and str(row[1]).strip().isdigit():
+                            # คอลัมน์ที่ 1 คือ ID, 9 คือคะแนน, 10 คือเกรด
+                            if len(row) > 10 and str(row[1]).strip().isdigit():
                                 pdf_list.append({
                                     'ID': str(row[1]).strip(),
                                     'คะแนน_PDF': row[9],
@@ -39,6 +37,7 @@ if excel_file and pdf_file:
 
             # --- 2. เตรียมข้อมูล Excel (แยกห้อง) ---
             df_raw = pd.read_excel(excel_file, header=None)
+            # ค้นหาจุดตัดแต่ละห้อง (ม.1/)
             room_indices = df_raw[df_raw.iloc[:, 0].astype(str).str.contains('ม.1/', na=False)].index.tolist()
             room_indices.append(len(df_raw))
 
@@ -51,17 +50,17 @@ if excel_file and pdf_file:
                 room_name = str(df_room_chunk.iloc[0, 0]).strip()
 
                 with st.expander(f"📂 ผลการตรวจสอบ: {room_name}", expanded=True):
-                    # กรองข้อมูลนักเรียน
+                    # กรองข้อมูลนักเรียนใน Excel
                     df_students = df_room_chunk.iloc[3:].copy()
                     df_students = df_students[df_students.iloc[:, 1].astype(str).str.strip().str.isdigit()]
                     df_students = df_students.iloc[:, [1, 3, 4, 17, 18]]
                     df_students.columns = ['ID', 'ชื่อ', 'นามสกุล', 'คะแนน_Excel', 'เกรด_Excel']
                     df_students['ID'] = df_students['ID'].astype(str).str.strip().str.replace('.0', '', regex=False)
 
-                    # Merge กับ PDF
+                    # Merge กับข้อมูลจาก PDF
                     df_final = pd.merge(df_students, df_pdf_all, on='ID', how='left')
 
-                    # แสดงตาราง
+                    # ฟังก์ชันจัดการสี Highlight
                     def highlight_logic(row):
                         def safe_float(val):
                             try: return float(str(val).strip().replace(',', ''))
@@ -69,13 +68,15 @@ if excel_file and pdf_file:
                         s_ex, s_pdf = safe_float(row['คะแนน_Excel']), safe_float(row['คะแนน_PDF'])
                         g_ex, g_pdf = str(row['เกรด_Excel']).strip(), str(row['เกรด_PDF']).strip()
                         if s_ex is not None and s_pdf is not None:
+                            # เช็คให้ตรงกันเป๊ะ
                             bg = 'background-color: #C6EFCE' if (s_ex == s_pdf and g_ex == g_pdf) else 'background-color: #FFC7CE'
                         else: bg = 'background-color: #FFEB9C'
                         return [bg] * len(row)
 
                     st.dataframe(df_final.style.apply(highlight_logic, axis=1), use_container_width=True)
 
-                 st.markdown("---")
+                    # --- ส่วนคำนวณร้อยละสรุป ---
+                    st.markdown("---")
                     col_sum1, col_sum2, col_sum3 = st.columns(3)
                     
                     # 1. ดึงจาก Excel (แถวที่เขียนว่าร้อยละ)
