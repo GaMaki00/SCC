@@ -71,14 +71,18 @@ if excel_file and pdf_file:
                     # แสดงตารางพร้อมไฮไลท์สีบนเว็บ
                     def apply_highlight(row):
                         try:
-                            s_ex = float(str(row['คะแนน_Excel']).replace(',', ''))
-                            s_ex = float(str(row['เกรด_Excel']).replace(',', ''))
-                            s_pdf = float(str(row['คะแนน_PDF']).replace(',', ''))
-                            s_pdf = float(str(row['เกรด_PDF']).replace(',', ''))
-                            bg = 'background-color: #C6EFCE' if s_ex == s_pdf else 'background-color: #FFC7CE'
-                        except: bg = 'background-color: #FFEB9C'
+                            s_ex1 = float(str(row['คะแนน_Excel']).replace(',', ''))
+                            s_ex2 = float(str(row['เกรด_Excel']).replace(',', ''))
+                            s_pdf1 = float(str(row['คะแนน_PDF']).replace(',', ''))
+                            s_pdf2 = float(str(row['เกรด_PDF']).replace(',', ''))
+                            if s_ex1 == s_pdf1 and s_ex2 == s_pdf2:
+                                bg = 'background-color: #C6EFCE'
+                            else
+                                bg = 'background-color: #FFC7CE'
+                        except:
+                            bg = 'background-color: #FFEB9C'
                         return [bg] * len(row)
-
+                        
                     st.dataframe(df_final.style.apply(apply_highlight, axis=1), use_container_width=True)
 
                     # --- ส่วนคำนวณร้อยละและ Metric ---
