@@ -3,3 +3,8 @@ pandas
 pdfplumber
 openpyxl
 jinja2
+streamlit
+pandas
+pdfplumber
+openpyxl
+xlsxwriter
