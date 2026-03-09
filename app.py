@@ -42,7 +42,6 @@ if excel_file and pdf_file:
                                         'คะแนน_PDF': row[9],
                                         'เกรด_PDF': row[10]
                                     })
-                                })
             df_pdf_all = pd.DataFrame(pdf_list)
 
             # --- 2. เตรียมข้อมูล Excel (แยกห้อง) ---
