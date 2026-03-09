@@ -136,16 +136,26 @@ if excel_file and pdf_file:
                     with c2: st.metric("ร้อยละ Excel", f"{res['ex_avg']:.2f}")
                     with c3: 
                         diff = pdf_avg - excel_avg
-                        if abs(diff) <= 0.01:
-                            status_color = "normal"
+                        if abs(diff) > 0.01:
+                        # ใช้สีแดงสำหรับตัวเลขหลัก
+                            display_html = f"""
+                                <div style="line-height: 1;">
+                                    <p style="font-size: 16px; margin-bottom: 0px;">ร้อยละ PDF (คำนวณ)</p>
+                                    <p style="font-size: 42px; font-weight: bold; color: #FF4B4B; margin-top: 0px;">{pdf_avg:.2f}</p>
+                                    <p style="color: #FF4B4B; font-size: 16px;">↑ {diff:.2f} (ไม่ตรง)</p>
+                                </div>
+                            """
                         else:
-                            status_color = "inverse"
-
-                        st.metric(
-                            label="ร้อยละ PDF (คำนวณ)",
-                            value=f"{pdf_avg:.2f}",
-                            delta=f"{diff:.2f}", 
-                            delta_color=status_color
+                            # ใช้สีปกติ (หรือสีเขียว) สำหรับตัวเลขหลักเมื่อข้อมูลตรง
+                            display_html = f"""
+                                <div style="line-height: 1;">
+                                    <p style="font-size: 16px; margin-bottom: 0px;">ร้อยละ PDF (คำนวณ)</p>
+                                    <p style="font-size: 42px; font-weight: bold; color: #00D166; margin-top: 0px;">{pdf_avg:.2f}</p>
+                                    <p style="color: #00D166; font-size: 16px;">↑ {diff:.2f} (ตรงกัน)</p>
+                                </div>
+                            """
+    
+                        st.markdown(display_html, unsafe_allow_html=True)
                         )
                     # ปุ่มดาวน์โหลด
                     output = io.BytesIO()
