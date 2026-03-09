@@ -6,7 +6,7 @@ import io
 
 st.set_page_config(page_title="ระบบตรวจคะแนน ปพ. ครูโอม", layout="wide")
 
-st.title("📊 ระบบตรวจสอบคะแนน (รองรับ PDF 2 หน้าต่อห้อง)")
+st.title("📊 ระบบตรวจสอบคะแนน (เวอร์ชันแก้ไข Syntax)")
 
 # 1. ส่วนการอัปโหลดไฟล์
 col1, col2 = st.columns(2)
@@ -18,9 +18,9 @@ with col2:
 if excel_file and pdf_file:
     if st.button("🚀 เริ่มประมวลผล"):
         try:
-            # --- 1. อ่านข้อมูลรายคนจาก PDF ทั้งหมดเก็บไว้ก่อน ---
+            # --- 1. อ่านข้อมูลรายคนจาก PDF ทั้งหมด ---
             pdf_list = []
-            all_pages_text = [] # เก็บข้อความแยกตามหน้า
+            all_pages_text = []
             with pdfplumber.open(pdf_file) as pdf:
                 for page in pdf.pages:
                     text = page.extract_text()
@@ -75,16 +75,13 @@ if excel_file and pdf_file:
 
                     st.dataframe(df_final.style.apply(highlight_logic, axis=1), use_container_width=True)
 
-                  # --- แก้ไขเฉพาะส่วนการค้นหาร้อยละใน PDF (บรรทัดที่ประมาณ 90 เป็นต้นไป) ---
-
-                    # --- ส่วนที่แก้ไข: ดึงร้อยละ PDF โดยนับ 2 หน้าต่อ 1 ห้อง ---
+                    # --- ส่วนเช็คค่าสรุปท้ายตาราง ---
                     st.markdown("---")
                     col_sum1, col_sum2 = st.columns(2)
                     
-                    # 1. หาใน Excel
+                    # หาใน Excel
                     summary_row = df_room_chunk[df_room_chunk.apply(lambda x: x.astype(str).str.contains('ร้อยละ').any(), axis=1)]
                     if not summary_row.empty:
-                        # พยายามดึงจากคอลัมน์ที่ 17 (R) ถ้าเป็นตัวเลข
                         raw_val = summary_row.iloc[0, 17]
                         try:
                             excel_total = f"{float(raw_val):.2f}"
@@ -93,27 +90,21 @@ if excel_file and pdf_file:
                     else:
                         excel_total = "N/A"
                     
-                    # 2. หาใน PDF (เจาะจงหน้าของห้องนั้นๆ)
+                    # หาใน PDF (นับทีละ 2 หน้าต่อห้อง)
                     page_start = i * 2
                     page_end = page_start + 2
                     pdf_room_text = "\n".join(all_pages_text[page_start:page_end])
                     
-                    # ปรับ Regex ให้ครอบคลุม "ผลการเรียนเฉลี่ยร้อยละ" และดึงตัวเลขทศนิยมที่ตามมา
-                    # พยายามหาคำว่า "ผลการเรียนเฉลี่ยร้อยละ" หรือ "เฉลี่ยร้อยละ"
-                    match = re.search(r"(?:ผลการเรียนเฉลี่ยร้อยละ|เฉลี่ยร้อยละ|ร้อยละ)\s*[:]*\s*(\d+\.\d+)", pdf_room_text)
-                    
-                    if match:
-                        pdf_total = match.group(1)
-                    else:
-                        # ถ้ายังหาไม่เจอ ลองหาตัวเลขทศนิยมที่อยู่ใกล้ๆ คำว่า "ผลการเรียน"
-                        match_backup = re.search(r"ผลการเรียนเฉลี่ยร้อยละ\s+(\d+\.\d+)", pdf_room_text)
-                        pdf_total = match_backup.group(1) if match_backup else "ไม่พบข้อมูล"
+                    # ใช้ Regex ค้นหาคำเต็มๆ
+                    match = re.search(r"(?:ผลการเรียนเฉลี่ยร้อยละ)\s*[:]*\s*(\d+\.\d+)", pdf_room_text)
+                    pdf_total = match.group(1) if match else "ไม่พบข้อมูล"
 
                     with col_sum1:
                         st.metric(f"ร้อยละ {room_name} (Excel)", excel_total)
                     with col_sum2:
                         st.metric(f"ร้อยละ {room_name} (PDF)", pdf_total)
-if str(excel_total) == str(pdf_total):
+                    
+                    if str(excel_total) == str(pdf_total):
                         st.success("✅ ค่าร้อยละตรงกัน")
                     else:
                         st.error("❌ ค่าร้อยละไม่ตรงกัน!")
