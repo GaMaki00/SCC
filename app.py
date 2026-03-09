@@ -135,27 +135,26 @@ if excel_file and pdf_file:
                     with c1: st.metric("จำนวนนักเรียน", f"{res['count_ex']} / {res['count_pdf']}")
                     with c2: st.metric("ร้อยละ Excel", f"{res['ex_avg']:.2f}")
                     with c3: 
-                        diff = pdf_avg - excel_avg
+                        diff = res['pdf_avg'] - res['ex_avg']
                         if abs(diff) > 0.01:
                         # ใช้สีแดงสำหรับตัวเลขหลัก
+                            if abs(diff) > 0.01:
+                                text_color = "#FF4B4B" # สีแดง
+                                status_text = "ไม่ตรง"
+                            else:
+                                text_color = "#00D166" # สีเขียว
+                                status_text = "ตรงกัน"
+
                             display_html = f"""
-                                <div style="line-height: 1;">
-                                    <p style="font-size: 16px; margin-bottom: 0px;">ร้อยละ PDF (คำนวณ)</p>
-                                    <p style="font-size: 42px; font-weight: bold; color: #FF4B4B; margin-top: 0px;">{pdf_avg:.2f}</p>
-                                    <p style="color: #FF4B4B; font-size: 16px;">↑ {diff:.2f} (ไม่ตรง)</p>
+                                <div style="line-height: 1.2;">
+                                    <p style="font-size: 16px; margin-bottom: 0px; font-weight: bold;">ร้อยละ PDF (คำนวณ)</p>
+                                    <p style="font-size: 48px; font-weight: bold; color: {text_color}; margin: 5px 0px;">{res['pdf_avg']:.2f}</p>
+                                    <p style="color: {text_color}; font-size: 16px; font-weight: bold;">
+                                        {'↑' if diff >= 0 else '↓'} {abs(diff):.2f} ({status_text})
+                                    </p>
                                 </div>
                             """
-                        else:
-                            # ใช้สีปกติ (หรือสีเขียว) สำหรับตัวเลขหลักเมื่อข้อมูลตรง
-                            display_html = f"""
-                                <div style="line-height: 1;">
-                                    <p style="font-size: 16px; margin-bottom: 0px;">ร้อยละ PDF (คำนวณ)</p>
-                                    <p style="font-size: 42px; font-weight: bold; color: #00D166; margin-top: 0px;">{pdf_avg:.2f}</p>
-                                    <p style="color: #00D166; font-size: 16px;">↑ {diff:.2f} (ตรงกัน)</p>
-                                </div>
-                            """
-    
-                        st.markdown(display_html, unsafe_allow_html=True)
+                            st.markdown(display_html, unsafe_allow_html=True)
                     # ปุ่มดาวน์โหลด
                     output = io.BytesIO()
                     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
