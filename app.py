@@ -77,7 +77,8 @@ if excel_file and pdf_file:
                     df_students = df_students.iloc[:, [1, 3, 4, 17, 18]]
                     df_students.columns = ['ID', 'ชื่อ', 'นามสกุล', 'คะแนน_Excel', 'เกรด_Excel']
                     df_students['ID'] = df_students['ID'].astype(str).str.strip().str.replace('.0', '', regex=False)
-
+                    df_final.index = df_final.index + 1
+                    
                     # Merge
                     df_final = pd.merge(df_students, df_pdf_all, on='ID', how='left')
                     
