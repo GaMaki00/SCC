@@ -129,11 +129,13 @@ if excel_file and pdf_file:
                         return [bg] * len(row)
 
                     st.dataframe(res['df'].style.apply(apply_highlight, axis=1), use_container_width=True)
-
-                    # Metrics
+                    st.markdown("---")
                     c1, c2, c3 = st.columns(3)
-                    with c1: st.metric("จำนวนนักเรียน", f"{res['count_ex']} / {res['count_pdf']}")
-                    with c2: st.metric("ร้อยละ Excel", f"{res['ex_avg']:.2f}")
+                    
+                    with c1: 
+                        st.metric("จำนวนนักเรียน", f"{res['count_ex']} / {res['count_pdf']}")
+                    with c2: 
+                        st.metric("ร้อยละ Excel", f"{res['ex_avg']:.2f}")
                     with c3: 
                         diff = res['pdf_avg'] - res['ex_avg']
                         if abs(diff) > 0.01:
