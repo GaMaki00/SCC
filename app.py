@@ -83,7 +83,7 @@ if excel_file and pdf_file:
                     "ห้อง": room_name,
                     "นร. (Excel/PDF)": f"{count_ex}/{count_pdf}",
                     "ร้อยละ Excel": f"{excel_avg:.2f}",
-                    "ร้อยละ PDF": f"{excel_avg:.2f}",
+                    "ร้อยละ PDF": f"{pdf_avg:.2f}",
                     "สถานะ": status
                 })
                 
