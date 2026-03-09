@@ -21,10 +21,11 @@ if excel_file and pdf_file:
             # อ่าน Excel
             xl = pd.ExcelFile(excel_file)
             df_excel = pd.read_excel(excel_file, sheet_name=xl.sheet_names[0], skiprows=2)
-            df_excel = df_excel.iloc[:, [1, 17, 18]]
-            df_excel.columns = ['ID', 'คะแนน_Excel', 'เกรด_Excel']
+            df_excel = df_excel.iloc[:, [1, 2, 17, 18]]
+            df_excel.columns = ['ID', 'ชื่อ-นามสกุล', 'คะแนน_Excel', 'เกรด_Excel']
             df_excel['ID'] = df_excel['ID'].astype(str).str.strip().str.replace('.0', '', regex=False)
-
+            df_excel['ชื่อ-นามสกุล'] = df_excel['ชื่อ-นามสกุล'].astype(str).str.strip()
+            
             # อ่าน PDF
             pdf_list = []
             with pdfplumber.open(pdf_file) as pdf:
@@ -41,6 +42,7 @@ if excel_file and pdf_file:
             
             df_pdf = pd.DataFrame(pdf_list)
             df_final = pd.merge(df_excel, df_pdf, on='ID', how='outer')
+            df_final = df_final[['ID', 'ชื่อ-นามสกุล', 'คะแนน_Excel', 'คะแนน_PDF', 'เกรด_Excel', 'เกรด_PDF']]
 
             # Logic การตรวจสอบ (Highlight)
             def highlight_logic(row):
