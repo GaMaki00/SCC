@@ -135,9 +135,18 @@ if excel_file and pdf_file:
                     with c1: st.metric("จำนวนนักเรียน", f"{res['count_ex']} / {res['count_pdf']}")
                     with c2: st.metric("ร้อยละ Excel", f"{res['ex_avg']:.2f}")
                     with c3: 
-                        diff = res['pdf_avg'] - res['ex_avg']
-                        st.metric("ร้อยละ PDF (คำนวณ)", f"{res['pdf_avg']:.2f}", delta=f"{diff:.2f}")
+                        diff = pdf_avg - excel_avg
+                        if abs(diff) <= 0.02:
+                            status_color = "normal"
+                        else:
+                            status_color = "inverse"
 
+                        st.metric(
+                            label="ร้อยละ PDF (คำนวณ)",
+                            value=f"{pdf_avg:.2f}",
+                            delta=f"{diff:.2f}", 
+                            delta_color=status_color
+                        )
                     # ปุ่มดาวน์โหลด
                     output = io.BytesIO()
                     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
