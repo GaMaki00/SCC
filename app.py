@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import pdfplumber
 import io
+import re 
 
 st.set_page_config(page_title="ระบบเทียบคะแนน ปพ.", layout="wide")
 
@@ -79,3 +80,32 @@ if excel_file and pdf_file:
 
         except Exception as e:
             st.error(f"เกิดข้อผิดพลาด: {e}")
+
+# 1. ดึงจาก PDF (หาเลขหลังคำว่า ผลการเรียนเฉลี่ยร้อยละ)
+with pdfplumber.open(pdf_file) as pdf:
+    last_page_text = pdf.pages[-1].extract_text()
+    # ใช้ Regex หาตัวเลขทศนิยมที่ตามหลังคำว่า "ร้อยละ"
+    pdf_total_match = re.search(r"เฉลี่ยร้อยละ\s*(\d+\.\d+)", last_page_text)
+    pdf_total_score = pdf_total_match.group(1) if pdf_total_match else "ไม่พบข้อมูล"
+
+# 2. ดึงจาก Excel 
+# สมมติว่าอยู่ในคอลัมน์ที่ 17 (R) และแถวที่เขียนว่า 'ร้อยละ'
+# เราจะค้นหาแถวที่มีคำว่า 'ร้อยละ' ในคอลัมน์แรกๆ
+row_index = df_excel_full[df_excel_full.iloc[:, 0].str.contains('ร้อยละ', na=False)].index
+if not row_index.empty:
+    excel_total_score = df_excel_full.iloc[row_index[0], 17] # 17 คือคอลัมน์คะแนนรวม
+else:
+    excel_total_score = "ไม่พบข้อมูล"
+
+# --- ส่วนการแสดงผลบน Streamlit ---
+st.divider() # ขีดเส้นคั่น
+st.subheader("🎯 ตรวจสอบคะแนนเฉลี่ยร้อยละรวม")
+c1, c2, c3 = st.columns(3)
+c1.metric("ร้อยละใน Excel", excel_total_score)
+c2.metric("ร้อยละใน PDF", pdf_total_score)
+
+# เช็กว่าตรงกันไหม
+if str(excel_total_score) == str(pdf_total_score):
+    c3.success("✅ ตรงกัน")
+else:
+    c3.error("❌ ไม่ตรงกัน")
