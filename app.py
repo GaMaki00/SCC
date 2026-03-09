@@ -78,7 +78,7 @@ if excel_file and pdf_file:
                             s_pdf2 = float(str(row['เกรด_PDF']).replace(',', '').strip())
                             if s_ex1 == s_pdf1 and s_ex2 == s_pdf2:
                                 bg = 'background-color: #C6EFCE'
-                            else
+                            else:
                                 bg = 'background-color: #FFC7CE'
                         except:
                             bg = 'background-color: #FFEB9C'
