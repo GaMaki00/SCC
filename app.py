@@ -23,15 +23,25 @@ if excel_file and pdf_file:
             pdf_list = []
             with pdfplumber.open(pdf_file) as pdf:
                 for page in pdf.pages:
-                    table = page.extract_table()
-                    if table:
+                    # ใช้ Settings พิเศษเพื่อให้ pdfplumber ตรวจจับตารางได้แม่นขึ้น
+                    tables = page.extract_tables(table_settings={
+                        "vertical_strategy": "lines", 
+                        "horizontal_strategy": "lines",
+                        "snap_tolerance": 3,
+                    })
+                    
+                    for table in tables:
                         for row in table:
-                            # คอลัมน์ที่ 1 คือ ID, 9 คือคะแนน, 10 คือเกรด
-                            if len(row) > 10 and str(row[1]).strip().isdigit():
-                                pdf_list.append({
-                                    'ID': str(row[1]).strip(),
-                                    'คะแนน_PDF': row[9],
-                                    'เกรด_PDF': row[10]
+                            # เช็คว่ามีคอลัมน์พอ และคอลัมน์ที่ 1 เป็นตัวเลขประจำตัวหรือไม่
+                            if len(row) > 10:
+                                student_id = str(row[1]).strip()
+                                # ตรวจสอบว่าเป็นตัวเลข 5 หลัก หรือเลขประจำตัวนักเรียน
+                                if student_id.isdigit() and len(student_id) >= 4:
+                                    pdf_list.append({
+                                        'ID': student_id,
+                                        'คะแนน_PDF': row[9],
+                                        'เกรด_PDF': row[10]
+                                    })
                                 })
             df_pdf_all = pd.DataFrame(pdf_list)
 
