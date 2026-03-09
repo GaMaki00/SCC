@@ -75,37 +75,41 @@ if excel_file and pdf_file:
 
                     st.dataframe(df_final.style.apply(highlight_logic, axis=1), use_container_width=True)
 
+                  # --- แก้ไขเฉพาะส่วนการค้นหาร้อยละใน PDF (บรรทัดที่ประมาณ 90 เป็นต้นไป) ---
+
                     # --- ส่วนที่แก้ไข: ดึงร้อยละ PDF โดยนับ 2 หน้าต่อ 1 ห้อง ---
                     st.markdown("---")
                     col_sum1, col_sum2 = st.columns(2)
                     
-                    # หาใน Excel
+                    # 1. หาใน Excel
                     summary_row = df_room_chunk[df_room_chunk.apply(lambda x: x.astype(str).str.contains('ร้อยละ').any(), axis=1)]
-                    excel_total = summary_row.iloc[0, 17] if not summary_row.empty else "N/A"
-                    if isinstance(excel_total, float): excel_total = f"{excel_total:.2f}"
+                    if not summary_row.empty:
+                        # พยายามดึงจากคอลัมน์ที่ 17 (R) ถ้าเป็นตัวเลข
+                        raw_val = summary_row.iloc[0, 17]
+                        try:
+                            excel_total = f"{float(raw_val):.2f}"
+                        except:
+                            excel_total = str(raw_val)
+                    else:
+                        excel_total = "N/A"
                     
-                    # หาใน PDF (เจาะจงหน้าของห้องนั้นๆ)
-                    # ห้องที่ 1 (i=0) ใช้หน้า 0,1 | ห้องที่ 2 (i=1) ใช้หน้า 2,3
+                    # 2. หาใน PDF (เจาะจงหน้าของห้องนั้นๆ)
                     page_start = i * 2
                     page_end = page_start + 2
                     pdf_room_text = "\n".join(all_pages_text[page_start:page_end])
                     
-                    # ค้นหาคำว่า ผลการเรียนเฉลี่ยร้อยละ หรือ ร้อยละ
-                    match = re.search(r"(?:ผลการเรียนเฉลี่ยร้อยละ)\s*(\d+\.\d+)", pdf_room_text)
-                    pdf_total = match.group(1) if match else "ไม่พบข้อมูล"
+                    # ปรับ Regex ให้ครอบคลุม "ผลการเรียนเฉลี่ยร้อยละ" และดึงตัวเลขทศนิยมที่ตามมา
+                    # พยายามหาคำว่า "ผลการเรียนเฉลี่ยร้อยละ" หรือ "เฉลี่ยร้อยละ"
+                    match = re.search(r"(?:ผลการเรียนเฉลี่ยร้อยละ|เฉลี่ยร้อยละ|ร้อยละ)\s*[:]*\s*(\d+\.\d+)", pdf_room_text)
+                    
+                    if match:
+                        pdf_total = match.group(1)
+                    else:
+                        # ถ้ายังหาไม่เจอ ลองหาตัวเลขทศนิยมที่อยู่ใกล้ๆ คำว่า "ผลการเรียน"
+                        match_backup = re.search(r"ผลการเรียนเฉลี่ยร้อยละ\s+(\d+\.\d+)", pdf_room_text)
+                        pdf_total = match_backup.group(1) if match_backup else "ไม่พบข้อมูล"
 
                     with col_sum1:
                         st.metric(f"ร้อยละ {room_name} (Excel)", excel_total)
                     with col_sum2:
                         st.metric(f"ร้อยละ {room_name} (PDF)", pdf_total)
-                    
-                    # เช็คความถูกต้อง
-                    if str(excel_total) == str(pdf_total):
-                        st.success("✅ ค่าร้อยละตรงกัน")
-                    else:
-                        st.error("❌ ค่าร้อยละไม่ตรงกัน!")
-
-            st.success("✅ ตรวจสอบครบทุกห้องเรียบร้อยแล้ว!")
-
-        except Exception as e:
-            st.error(f"เกิดข้อผิดพลาด: {e}")
