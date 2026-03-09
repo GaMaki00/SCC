@@ -82,8 +82,8 @@ if excel_file and pdf_file:
                 summary_dashboard.append({
                     "ห้อง": room_name,
                     "นร. (Excel/PDF)": f"{count_ex}/{count_pdf}",
-                    "ร้อยละ Excel": round(excel_avg, 2),
-                    "ร้อยละ PDF": round(pdf_avg, 2),
+                    "ร้อยละ Excel": f"{excel_avg:.2f}",
+                    "ร้อยละ PDF": f"{excel_avg:.2f}",
                     "สถานะ": status
                 })
                 
@@ -100,7 +100,8 @@ if excel_file and pdf_file:
             # --- 4. แสดงผล Dashboard บนสุด ---
             st.subheader("📌 สรุปภาพรวมทุกห้อง")
             df_dash = pd.DataFrame(summary_dashboard)
-            
+            # เริ่มต้นที่เลข 1 แทนเลข 0
+            df_dash.index = df_dash.index + 1
             # ตกแต่งสีใน Dashboard
             def color_status(val):
                 color = '#C6EFCE' if val == "✅ ตรงกัน" else '#FFC7CE'
