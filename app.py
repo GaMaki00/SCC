@@ -81,31 +81,55 @@ if excel_file and pdf_file:
         except Exception as e:
             st.error(f"เกิดข้อผิดพลาด: {e}")
 
-# 1. ดึงจาก PDF (หาเลขหลังคำว่า ผลการเรียนเฉลี่ยร้อยละ)
-with pdfplumber.open(pdf_file) as pdf:
-    last_page_text = pdf.pages[-1].extract_text()
-    # ใช้ Regex หาตัวเลขทศนิยมที่ตามหลังคำว่า "ร้อยละ"
-    pdf_total_match = re.search(r"เฉลี่ยร้อยละ\s*(\d+\.\d+)", last_page_text)
-    pdf_total_score = pdf_total_match.group(1) if pdf_total_match else "ไม่พบข้อมูล"
+# --- 3. ส่วนการตรวจสอบ "ร้อยละ" ท้ายตาราง ---
+        st.divider()
+        st.subheader("🎯 ตรวจสอบค่าสรุปท้ายตาราง (ร้อยละรวม)")
 
-# 2. ดึงจาก Excel 
-# สมมติว่าอยู่ในคอลัมน์ที่ 17 (R) และแถวที่เขียนว่า 'ร้อยละ'
-# เราจะค้นหาแถวที่มีคำว่า 'ร้อยละ' ในคอลัมน์แรกๆ
-row_index = df_excel_full[df_excel_full.iloc[:, 0].str.contains('ร้อยละ', na=False)].index
-if not row_index.empty:
-    excel_total_score = df_excel_full.iloc[row_index[0], 17] # 17 คือคอลัมน์คะแนนรวม
-else:
-    excel_total_score = "ไม่พบข้อมูล"
+        try:
+            # --- ดึงจาก Excel (หาแถวที่มีคำว่า "ร้อยละ") ---
+            # อ่าน Excel แบบเต็มๆ ไม่ข้ามแถว เพื่อหาบรรทัดสรุป
+            df_full = pd.read_excel(excel_file, sheet_name=xl.sheet_names[0])
+            
+            # ค้นหาแถวที่มีคำว่า "ร้อยละ" ในคอลัมน์ใดก็ได้
+            mask = df_full.apply(lambda row: row.astype(str).str.contains('ร้อยละ').any(), axis=1)
+            summary_row = df_full[mask]
 
-# --- ส่วนการแสดงผลบน Streamlit ---
-st.divider() # ขีดเส้นคั่น
-st.subheader("🎯 ตรวจสอบคะแนนเฉลี่ยร้อยละรวม")
-c1, c2, c3 = st.columns(3)
-c1.metric("ร้อยละใน Excel", excel_total_score)
-c2.metric("ร้อยละใน PDF", pdf_total_score)
+            if not summary_row.empty:
+                # ดึงค่าจากคอลัมน์ที่ 17 (R) ของแถวนั้น
+                excel_total = summary_row.iloc[0, 17] 
+                # ทำความสะอาดตัวเลข (ปัดทศนิยมให้เท่ากับ PDF)
+                excel_total_val = f"{float(excel_total):.2f}"
+            else:
+                excel_total_val = "ไม่พบแถวร้อยละ"
 
-# เช็กว่าตรงกันไหม
-if str(excel_total_score) == str(pdf_total_score):
-    c3.success("✅ ตรงกัน")
-else:
-    c3.error("❌ ไม่ตรงกัน")
+            # --- ดึงจาก PDF (หาตัวเลขหลังคำว่า ผลการเรียนเฉลี่ยร้อยละ) ---
+            import re
+            pdf_total_val = "ไม่พบใน PDF"
+            with pdfplumber.open(pdf_file) as pdf:
+                # ตรวจสอบ 2 หน้าสุดท้าย (เผื่อข้อมูลสรุปอยู่หน้าแยก)
+                pages_to_check = pdf.pages[-2:] if len(pdf.pages) > 1 else pdf.pages
+                for page in pages_to_check:
+                    text = page.extract_text()
+                    if text:
+                        # ใช้ Regex ดึงตัวเลขที่อยู่หลังคำว่า "ร้อยละ"
+                        match = re.search(r"ร้อยละ\s*(\d+\.\d+)", text)
+                        if match:
+                            pdf_total_val = match.group(1)
+                            break
+
+            # --- แสดงผลเปรียบเทียบ ---
+            col_ex, col_pdf, col_res = st.columns(3)
+            
+            with col_ex:
+                st.metric("ร้อยละจาก Excel", excel_total_val)
+            with col_pdf:
+                st.metric("ร้อยละจาก PDF", pdf_total_val)
+            with col_res:
+                if excel_total_val == pdf_total_val:
+                    st.success("✅ ค่าร้อยละตรงกัน")
+                else:
+                    st.error("❌ ค่าร้อยละไม่ตรงกัน!")
+                    st.caption(f"ส่วนต่าง: {abs(float(excel_total_val) - float(pdf_total_val)):.2f}")
+
+        except Exception as e:
+            st.warning(f"ไม่สามารถตรวจสอบค่าร้อยละสรุปได้อัตโนมัติ: {e}")
