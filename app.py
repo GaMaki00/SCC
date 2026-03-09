@@ -54,9 +54,9 @@ if excel_file and pdf_file:
                                 
                                 if len(numeric_words) >= 5:
                                     # คะแนนรวม (ช่องที่ 9 ของแถวข้อมูล)
-                                    score_val = numeric_words[-2] 
+                                    score_val = numeric_words[9] 
                                     # เกรด (ช่องที่ 10 ของแถวข้อมูล)
-                                    grade_val = numeric_words[-1]
+                                    grade_val = numeric_words[10]
                                     
                                     pdf_data.append({
                                         'ID': student_id,
