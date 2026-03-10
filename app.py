@@ -4,7 +4,7 @@ import pdfplumber
 import re
 import io
 
-st.set_page_config(page_title="ระบบตรวจคะแนน ปพ. ครูโอม", layout="wide")
+st.set_page_config(page_title="ระบบตรวจคะแนน ปพ.", layout="wide")
 
 st.title("📊 ระบบตรวจสอบคะแนน (พร้อมสรุปภาพรวมทุกห้อง)")
 
