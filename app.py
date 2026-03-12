@@ -259,3 +259,6 @@ if excel_file:
 
             df_result = pd.DataFrame(rows).fillna("")
             st.table(df_result)
+            # ปุ่มดาวน์โหลด
+            csv = df_result.to_csv(index=False).encode('utf-8-sig')
+            st.download_button("📥 ดาวน์โหลดตารางผลสัมฤทธิ์ (CSV)", csv, "achievement.csv", "text/csv")
