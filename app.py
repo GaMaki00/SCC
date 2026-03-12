@@ -17,7 +17,7 @@ with col2:
     pdf_file = st.file_uploader("📄 2. เลือกไฟล์ PDF ปพ. (สำหรับตรวจสอบ)", type=['pdf'])
 
 # สร้างหมวดหมู่ (Tabs)
-tab1, tab2 = st.tabs(["🔍 ตรวจสอบคะแนน (Excel vs PDF)", "📈 วิเคราะห์สถิติรายห้อง (S.D./Mean)"])
+tab1, tab2, tab3 = st.tabs(["🔍 ตรวจสอบคะแนน", "📈 วิเคราะห์สถิติ", "📊 ผลสัมฤทธิ์"])
 
 if excel_file:
     # --- ส่วนกลาง: อ่านข้อมูล Excel รอไว้เลย ---
