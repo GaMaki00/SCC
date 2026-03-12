@@ -181,9 +181,9 @@ if excel_file:
             
             # ช่องก๊อปปี้
             st.text_area("📋 ก๊อปปี้ข้อความไปใช้ในรายงาน:", value=report_text, height=150)
-        # --- TAB 3: ผลสัมฤทธิ์ทางการเรียน ---
+       # --- TAB 3: ผลสัมฤทธิ์ทางการเรียน (เพิ่มร้อยละ 3-4) ---
     with tab3:
-        st.subheader("📊 ตารางผลสัมฤทธิ์ทางการเรียน (แยกตามเกรด)")
+        st.subheader("📊 ตารางผลสัมฤทธิ์ทางการเรียนและร้อยละเกรด 3-4")
         if st.button("📝 ประมวลผลตารางเกรด"):
             grade_summary = []
             
@@ -192,26 +192,23 @@ if excel_file:
                 df_room = df_raw.iloc[start:end].reset_index(drop=True)
                 room_name = str(df_room.iloc[0, 0]).strip()
 
-                # ดึงข้อมูลนักเรียนและเกรด (คอลัมน์ที่ 18 คือเกรด)
                 df_students = df_room.iloc[2:].copy()
                 df_students = df_students[df_students.iloc[:, 1].astype(str).str.strip().str.isdigit()]
                 
-                # แปลงเกรดเป็นตัวเลข (จัดการเกรด 4, 3.5, 3 ...)
                 grades = pd.to_numeric(df_students.iloc[:, 18], errors='coerce').dropna()
                 total_in_room = len(grades)
 
                 if total_in_room > 0:
-                    # นับจำนวนนักเรียนในแต่ละเกรด
-                    g4   = (grades == 4.0).sum()
-                    g3_5 = (grades == 3.5).sum()
-                    g3   = (grades == 3.0).sum()
-                    g2_5 = (grades == 2.5).sum()
-                    g2   = (grades == 2.0).sum()
-                    g1_5 = (grades == 1.5).sum()
-                    g1   = (grades == 1.0).sum()
-                    g0   = (grades == 0).sum()
+                    # นับเกรดแต่ละระดับ
+                    g4, g3_5, g3, g2_5, g2, g1_5, g1, g0 = [
+                        (grades == v).sum() for v in [4.0, 3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0]
+                    ]
                     
-                    # คำนวณ Mean และ S.D. ของห้องนั้นๆ
+                    # คำนวณกลุ่มเกรด 3 ขึ้นไป (3, 3.5, 4)
+                    count_3_up = g4 + g3_5 + g3
+                    percent_3_up = (count_3_up / total_in_room) * 100
+
+                    # สถิติคะแนน
                     scores = pd.to_numeric(df_students.iloc[:, 17], errors='coerce').dropna()
                     mean_val = scores.mean() if not scores.empty else 0
                     sd_val = scores.std() if not scores.empty else 0
@@ -220,14 +217,19 @@ if excel_file:
                         "ห้อง": room_name,
                         "4": g4, "3.5": g3_5, "3": g3, "2.5": g2_5, "2": g2, "1.5": g1_5, "1": g1, "0": g0,
                         "รวม": total_in_room,
+                        "จำนวน 3-4": count_3_up,
+                        "ร้อยละ 3-4": f"{percent_3_up:.2f}",
                         "X̄": f"{mean_val:.2f}",
                         "S.D.": f"{sd_val:.2f}"
                     })
 
-            # สร้าง DataFrame
             df_grade_final = pd.DataFrame(grade_summary)
             
-            # เพิ่มแถวรวม (Total) ด้านล่าง
+            # --- คำนวณแถวสรุปรวม ---
+            total_students = df_grade_final["รวม"].sum()
+            total_3_up = df_grade_final["จำนวน 3-4"].sum()
+            total_percent_3_up = (total_3_up / total_students * 100) if total_students > 0 else 0
+
             total_row = {
                 "ห้อง": "รวม",
                 "4": df_grade_final["4"].sum(),
@@ -238,7 +240,9 @@ if excel_file:
                 "1.5": df_grade_final["1.5"].sum(),
                 "1": df_grade_final["1"].sum(),
                 "0": df_grade_final["0"].sum(),
-                "รวม": df_grade_final["รวม"].sum(),
+                "รวม": total_students,
+                "จำนวน 3-4": total_3_up,
+                "ร้อยละ 3-4": f"{total_percent_3_up:.2f}",
                 "X̄": f"{df_grade_final['X̄'].astype(float).mean():.2f}",
                 "S.D.": f"{df_grade_final['S.D.'].astype(float).mean():.2f}"
             }
@@ -247,8 +251,5 @@ if excel_file:
             # แสดงผลตาราง
             st.table(df_grade_final)
             
-            # ปุ่มโหลด Excel สำหรับ Tab 3
-            output_grade = io.BytesIO()
-            with pd.ExcelWriter(output_grade, engine='xlsxwriter') as writer:
-                df_grade_final.to_excel(writer, index=False, sheet_name='Grade_Summary')
-            st.download_button("📥 ดาวน์โหลดตารางเกรด (Excel)", output_grade.getvalue(), "grade_summary.xlsx")
+            # แสดงข้อความสรุปเน้นย้ำร้อยละ 3-4
+            st.info(f"📌 ภาพรวมสายชั้น: มีนักเรียนได้เกรด 3 ขึ้นไปทั้งหมด **{total_3_up}** คน คิดเป็นร้อยละ
