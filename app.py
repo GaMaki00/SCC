@@ -17,7 +17,7 @@ with col2:
     pdf_file = st.file_uploader("📄 2. เลือกไฟล์ PDF ปพ. (สำหรับตรวจสอบ)", type=['pdf'])
 
 # สร้างหมวดหมู่ (Tabs)
-tab1, tab2, tab3, tab4 = st.tabs(["🔍 ตรวจสอบคะแนน", "📈 วิเคราะห์สถิติ", "📊 ผลสัมฤทธิ์", "การคำนวณประสิทธิภาพของแผนการจัดการเรียนรู้"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔍 ตรวจสอบคะแนน", "📈 วิเคราะห์สถิติ", "📊 ผลสัมฤทธิ์", "🧮 E1/E2", "🏆 Top 10"])
 
 if excel_file:
     # --- ส่วนกลาง: อ่านข้อมูล Excel รอไว้เลย ---
@@ -325,3 +325,65 @@ if excel_file:
                 st.success(f"📌 สรุป: แผนการสอนมีประสิทธิภาพ **{percent_e1:.2f} / {percent_e2:.2f}**")
             else:
                 st.error("❌ ข้อมูลในคอลัมน์ที่เลือกไม่ใช่ตัวเลข หรือข้อมูลว่างเปล่า กรุณาเลือกคอลัมน์ใหม่")
+        # --- TAB 5: นักเรียนที่ได้คะแนนสูงสุด 10 อันดับแรก ---
+    with tab5:
+        st.subheader("🏆 รายชื่อนักเรียนที่ได้คะแนนสูงสุด 10 อันดับแรก (Top 10)")
+        
+        # เลือกคอลัมน์คะแนนที่ต้องการนำมาจัดอันดับ
+        sample_room_idx = room_indices[0]
+        sample_room_end_idx = room_indices[1]
+        df_sample_top = df_raw.iloc[sample_room_idx:sample_room_end_idx].reset_index(drop=True)
+        col_options_top = [f"คอลัมน์ที่ {i}: {str(val)}" for i, val in enumerate(df_sample_top.iloc[1])]
+        
+        target_col_idx = st.selectbox(
+            "เลือกคอลัมน์คะแนนที่ใช้จัดอันดับ (เช่น คะแนนรวม หรือ เกรด):", 
+            range(len(col_options_top)), 
+            index=17, 
+            format_func=lambda x: col_options_top[x],
+            key="top10_select"
+        )
+
+        if st.button("🥇 ค้นหา 10 อันดับแรก"):
+            all_students_data = []
+            
+            for i in range(len(room_indices) - 1):
+                start, end = room_indices[i], room_indices[i+1]
+                df_room = df_raw.iloc[start:end].reset_index(drop=True)
+                room_name = str(df_room.iloc[0, 0]).strip()
+                
+                # กรองเอาเฉพาะแถวที่มีข้อมูลนักเรียน
+                df_students = df_room.iloc[2:].copy()
+                df_students = df_students[df_students.iloc[:, 1].astype(str).str.strip().str.isdigit()]
+                
+                for _, row in df_students.iterrows():
+                    score_val = pd.to_numeric(row[target_col_idx], errors='coerce')
+                    if not pd.isna(score_val):
+                        all_students_data.append({
+                            "เลขประจำตัว": str(row[1]).replace('.0', ''),
+                            "ชื่อ-นามสกุล": f"{row[3]} {row[4]}",
+                            "ห้อง": room_name,
+                            "คะแนนที่ได้": score_val
+                        })
+
+            if all_students_data:
+                # สร้าง DataFrame และจัดอันดับ
+                df_all_top = pd.DataFrame(all_students_data)
+                # เรียงคะแนนจากมากไปน้อย และเอา 10 อันดับแรก
+                df_top10 = df_all_top.sort_values(by="คะแนนที่ได้", ascending=False).head(10).reset_index(drop=True)
+                df_top10.index = df_top10.index + 1  # ให้เริ่มลำดับที่ 1
+                
+                # แสดงผล
+                st.balloons()  # แสดงเอฟเฟกต์ฉลองให้เด็กๆ
+                st.table(df_top10)
+                
+                # บทสรุปสำหรับประกาศหน้าเสาธง
+                best_student = df_top10.iloc[0]
+                st.success(f"🎊 นักเรียนที่ได้คะแนนสูงสุดอันดับ 1 คือ **{best_student['ชื่อ-นามสกุล']}** จากห้อง **{best_student['ห้อง']}** คะแนน: **{best_student['คะแนนที่ได้']}**")
+                
+                # ปุ่มโหลดเป็นไฟล์ Excel
+                output_top = io.BytesIO()
+                with pd.ExcelWriter(output_top, engine='xlsxwriter') as writer:
+                    df_top10.to_excel(writer, index=True, sheet_name='Top10_Students')
+                st.download_button("📥 ดาวน์โหลดรายชื่อ Top 10 (Excel)", output_top.getvalue(), "top10_students.xlsx")
+            else:
+                st.error("ไม่พบข้อมูลนักเรียน กรุณาตรวจสอบการเลือกคอลัมน์")
