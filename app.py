@@ -171,7 +171,7 @@ if excel_file:
             รหัสวิชา ว21112 จำนวน **{total_students}** คน 
             ได้คะแนนเฉลี่ย **{total_mean:.2f}** ส่วนเบี่ยงเบนมาตรฐาน **{total_sd:.2f}** ค่าสูงสุด **{overall_max:.2f}** คะแนน 
             ค่าต่ำสุด **{overall_min:.2f}** คะแนน 
-            โดยห้องที่ได้คะแนนเฉลี่ยสูงสุดได้แก่ **{room_names[0]}** และรองลงมาคือห้อง **{room_names[1]}**, และ **{room_names[2]}**
+            โดยห้องที่ได้คะแนนเฉลี่ยสูงสุดได้แก่ **{room_names[0]}** และรองลงมาคือห้อง **{room_names[1]}**, **{room_names[2]}**, **{room_names[3]}**, **{room_names[4]}**, **{room_names[5]}**, **{room_names[6]}**, **{room_names[7]}**, **{room_names[8]}**, และ **{room_names[9]}**
             """
             
             st.success(report_text)
