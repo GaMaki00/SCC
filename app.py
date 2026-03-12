@@ -181,7 +181,7 @@ if excel_file:
             
             # ช่องก๊อปปี้
             st.text_area("📋 ก๊อปปี้ข้อความไปใช้ในรายงาน:", value=report_text, height=150)
-       # --- TAB 3: ผลสัมฤทธิ์ทางการเรียน (เพิ่มร้อยละ 3-4) ---
+      # --- TAB 3: ผลสัมฤทธิ์ทางการเรียน (เพิ่มร้อยละ 3-4) ---
     with tab3:
         st.subheader("📊 ตารางผลสัมฤทธิ์ทางการเรียนและร้อยละเกรด 3-4")
         if st.button("📝 ประมวลผลตารางเกรด"):
@@ -252,4 +252,10 @@ if excel_file:
             st.table(df_grade_final)
             
             # แสดงข้อความสรุปเน้นย้ำร้อยละ 3-4
-            st.info(f"📌 ภาพรวมสายชั้น: มีนักเรียนได้เกรด 3 ขึ้นไปทั้งหมด **{total_3_up}** คน คิดเป็นร้อยละ
+            st.info(f"📌 ภาพรวมสายชั้น: มีนักเรียนได้เกรด 3 ขึ้นไปทั้งหมด **{total_3_up}** คน คิดเป็นร้อยละ **{total_percent_3_up:.2f}**")
+
+            # ปุ่มดาวน์โหลด
+            output_grade = io.BytesIO()
+            with pd.ExcelWriter(output_grade, engine='xlsxwriter') as writer:
+                df_grade_final.to_excel(writer, index=False, sheet_name='Achievement')
+            st.download_button("📥 ดาวน์โหลดตารางผลสัมฤทธิ์ (Excel)", output_grade.getvalue(), "grade_achievement.xlsx")
