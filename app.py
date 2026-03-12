@@ -181,12 +181,14 @@ if excel_file:
             
             # ช่องก๊อปปี้
             st.text_area("📋 ก๊อปปี้ข้อความไปใช้ในรายงาน:", value=report_text, height=150)
-      # --- TAB 3: ผลสัมฤทธิ์ทางการเรียน (เพิ่มร้อยละ 3-4) ---
+    # --- TAB 3: ผลสัมฤทธิ์ทางการเรียน (เลียนแบบตารางวิชาการ) ---
     with tab3:
-        st.subheader("📊 ตารางผลสัมฤทธิ์ทางการเรียนและร้อยละเกรด 3-4")
-        if st.button("📝 ประมวลผลตารางเกรด"):
-            grade_summary = []
-            
+        st.subheader("📊 ตารางแสดงผลสัมฤทธิ์ทางการเรียน (จำนวนและร้อยละ)")
+        if st.button("📝 ประมวลผลตารางเกรดแบบละเอียด"):
+            rows = []
+            totals = {str(g): 0 for g in [4, 3.5, 3, 2.5, 2, 1.5, 1, 0]}
+            totals["รวม"] = 0
+
             for i in range(len(room_indices) - 1):
                 start, end = room_indices[i], room_indices[i+1]
                 df_room = df_raw.iloc[start:end].reset_index(drop=True)
@@ -196,66 +198,64 @@ if excel_file:
                 df_students = df_students[df_students.iloc[:, 1].astype(str).str.strip().str.isdigit()]
                 
                 grades = pd.to_numeric(df_students.iloc[:, 18], errors='coerce').dropna()
-                total_in_room = len(grades)
+                scores = pd.to_numeric(df_students.iloc[:, 17], errors='coerce').dropna()
+                total_n = len(grades)
 
-                if total_in_room > 0:
-                    # นับเกรดแต่ละระดับ
-                    g4, g3_5, g3, g2_5, g2, g1_5, g1, g0 = [
-                        (grades == v).sum() for v in [4.0, 3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0]
-                    ]
+                if total_n > 0:
+                    # 1. นับจำนวนคน (N)
+                    counts = {str(g): (grades == g).sum() for g in [4, 3.5, 3, 2.5, 2, 1.5, 1, 0]}
                     
-                    # คำนวณกลุ่มเกรด 3 ขึ้นไป (3, 3.5, 4)
-                    count_3_up = g4 + g3_5 + g3
-                    percent_3_up = (count_3_up / total_in_room) * 100
+                    # เก็บยอดสะสมสำหรับแถวรวม
+                    for g in counts: totals[g] += counts[g]
+                    totals["รวม"] += total_n
 
-                    # สถิติคะแนน
-                    scores = pd.to_numeric(df_students.iloc[:, 17], errors='coerce').dropna()
-                    mean_val = scores.mean() if not scores.empty else 0
-                    sd_val = scores.std() if not scores.empty else 0
+                    # 2. คำนวณร้อยละ (%)
+                    percents = {g: f"{(counts[g]/total_n*100):.2f}" for g in counts}
+                    
+                    # 3. สถิติห้อง
+                    mean_v = f"{scores.mean():.2f}"
+                    sd_v = f"{scores.std():.2f}"
 
-                    grade_summary.append({
-                        "ห้อง": room_name,
-                        "4": g4, "3.5": g3_5, "3": g3, "2.5": g2_5, "2": g2, "1.5": g1_5, "1": g1, "0": g0,
-                        "รวม": total_in_room,
-                        "จำนวน 3-4": count_3_up,
-                        "ร้อยละ 3-4": f"{percent_3_up:.2f}",
-                        "X̄": f"{mean_val:.2f}",
-                        "S.D.": f"{sd_val:.2f}"
-                    })
+                    # เพิ่มแถว "จำนวนคน"
+                    row_n = {"ชั้น": room_name, "ประเภท": "จำนวน"}
+                    row_n.update(counts)
+                    row_n.update({"รวม": total_n, "X̄": mean_v, "S.D.": sd_v})
+                    rows.append(row_n)
 
-            df_grade_final = pd.DataFrame(grade_summary)
-            
-            # --- คำนวณแถวสรุปรวม ---
-            total_students = df_grade_final["รวม"].sum()
-            total_3_up = df_grade_final["จำนวน 3-4"].sum()
-            total_percent_3_up = (total_3_up / total_students * 100) if total_students > 0 else 0
+                    # เพิ่มแถว "ร้อยละ"
+                    row_p = {"ชั้น": room_name, "ประเภท": "ร้อยละ (%)"}
+                    row_p.update(percents)
+                    row_p.update({"รวม": "100.00", "X̄": "", "S.D.": ""})
+                    rows.append(row_p)
 
-            total_row = {
-                "ห้อง": "รวม",
-                "4": df_grade_final["4"].sum(),
-                "3.5": df_grade_final["3.5"].sum(),
-                "3": df_grade_final["3"].sum(),
-                "2.5": df_grade_final["2.5"].sum(),
-                "2": df_grade_final["2"].sum(),
-                "1.5": df_grade_final["1.5"].sum(),
-                "1": df_grade_final["1"].sum(),
-                "0": df_grade_final["0"].sum(),
-                "รวม": total_students,
-                "จำนวน 3-4": total_3_up,
-                "ร้อยละ 3-4": f"{total_percent_3_up:.2f}",
-                "X̄": f"{df_grade_final['X̄'].astype(float).mean():.2f}",
-                "S.D.": f"{df_grade_final['S.D.'].astype(float).mean():.2f}"
-            }
-            df_grade_final = pd.concat([df_grade_final, pd.DataFrame([total_row])], ignore_index=True)
+            # --- สร้างแถวสรุปรวม (รวมทั้งสายชั้น) ---
+            total_n_all = totals["รวม"]
+            if total_n_all > 0:
+                # แถวรวมจำนวน
+                summary_n = {"ชั้น": "รวม", "ประเภท": "จำนวน"}
+                summary_n.update(totals)
+                
+                # คำนวณ X̄ และ S.D. รวม (เฉลี่ยจากทุกห้อง)
+                all_raw_scores = [] # เพิ่มเติม: ถ้าต้องการความแม่นยำสูงควรเก็บคะแนนดิบทุกคนมาคำนวณรวม
+                
+                rows.append(summary_n)
 
-            # แสดงผลตาราง
-            st.table(df_grade_final)
-            
-            # แสดงข้อความสรุปเน้นย้ำร้อยละ 3-4
-            st.info(f"📌 ภาพรวมสายชั้น: มีนักเรียนได้เกรด 3 ขึ้นไปทั้งหมด **{total_3_up}** คน คิดเป็นร้อยละ **{total_percent_3_up:.2f}**")
+                # แถวรวมร้อยละ
+                summary_p = {"ชั้น": "รวม", "ประเภท": "ร้อยละ (%)"}
+                summary_p.update({g: f"{(totals[g]/total_n_all*100):.2f}" for g in totals if g != "รวม"})
+                summary_p.update({"รวม": "100.00", "X̄": "", "S.D.": ""})
+                rows.append(summary_p)
+
+                # --- แถวสรุป 3-4 (เหมือนในรูป) ---
+                count_3_4 = totals["4"] + totals["3.5"] + totals["3"]
+                percent_3_4 = (count_3_4 / total_n_all * 100)
+                
+                rows.append({"ชั้น": "รวม 3-4", "ประเภท": "จำนวน", "4": count_3_4, "รวม": total_n_all})
+                rows.append({"ชั้น": "รวม 3-4", "ประเภท": "ร้อยละ (%)", "4": f"{percent_3_4:.2f}"})
+
+            df_result = pd.DataFrame(rows).fillna("")
+            st.table(df_result)
 
             # ปุ่มดาวน์โหลด
-            output_grade = io.BytesIO()
-            with pd.ExcelWriter(output_grade, engine='xlsxwriter') as writer:
-                df_grade_final.to_excel(writer, index=False, sheet_name='Achievement')
-            st.download_button("📥 ดาวน์โหลดตารางผลสัมฤทธิ์ (Excel)", output_grade.getvalue(), "grade_achievement.xlsx")
+            csv = df_result.to_csv(index=False).encode('utf-8-sig')
+            st.download_button("📥 ดาวน์โหลดตารางผลสัมฤทธิ์ (CSV)", csv, "achievement.csv", "text/csv")
