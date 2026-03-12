@@ -139,3 +139,42 @@ if excel_file:
             # ปุ่มโหลด CSV สถิติ
             csv = df_stat_final.to_csv(index=False).encode('utf-8-sig')
             st.download_button("📥 โหลดไฟล์สถิติ (CSV)", csv, "stat_summary.csv", "text/csv")
+            # --- ส่วนคำนวณสรุปเป็นข้อความ (วางต่อจาก st.table) ---
+            
+            # 1. คำนวณภาพรวมทั้งสายชั้น
+            total_students = df_stat_final['นร.'].astype(int).sum()
+            
+            # แปลงค่ากลับเป็นตัวเลขเพื่อคำนวณ
+            df_calc = df_stat_final.copy()
+            for col in ['Mean', 'S.D.', 'Max', 'Min']:
+                df_calc[col] = pd.to_numeric(df_calc[col])
+                
+            total_mean = df_calc['Mean'].mean()
+            total_sd = df_calc['S.D.'].mean()
+            overall_max = df_calc['Max'].max()
+            overall_min = df_calc['Min'].min()
+            
+            # 2. จัดอันดับห้องที่ได้คะแนนสูงสุด 3 อันดับ
+            top_rooms = df_calc.sort_values(by='Mean', ascending=False).head(3)
+            room_names = top_rooms['ห้อง'].str.extract(r'(ม\.1/\d+)')[0].tolist()
+            
+            # เพื่อกัน Error กรณีมีห้องไม่ถึง 3 ห้อง
+            while len(room_names) < 3:
+                room_names.append(" - ")
+
+            # 3. แสดงผลเป็นข้อความสรุป
+            st.divider()
+            st.subheader("📝 บทสรุปสำหรับรายงาน")
+            
+            report_text = f"""
+            จากตารางพบว่า นักเรียนที่เรียนรายวิชาเทคโนโลยี (วิทยาการคำนวณ) 
+            รหัสวิชา ว21112 จำนวน **{total_students}** คน 
+            ได้คะแนนเฉลี่ย **{total_mean:.2f}** ส่วนเบี่ยงเบนมาตรฐาน **{total_sd:.2f}** ค่าสูงสุด **{overall_max:.2f}** คะแนน 
+            ค่าต่ำสุด **{overall_min:.2f}** คะแนน 
+            โดยห้องที่ได้คะแนนเฉลี่ยสูงสุดได้แก่ **{room_names[0]}** และรองลงมาคือห้อง **{room_names[1]}**, และ **{room_names[2]}**
+            """
+            
+            st.success(report_text)
+            
+            # เพิ่มปุ่มก๊อปปี้ข้อความ
+            st.text_area("ก๊อปปี้ข้อความด้านล่างนี้ไปใช้:", value=report_text.replace("**", ""), height=150)
