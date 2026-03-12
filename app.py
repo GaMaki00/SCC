@@ -262,19 +262,32 @@ if excel_file:
             # ปุ่มดาวน์โหลด
             csv = df_result.to_csv(index=False).encode('utf-8-sig')
             st.download_button("📥 ดาวน์โหลดตารางผลสัมฤทธิ์ (CSV)", csv, "achievement.csv", "text/csv")
-            # --- TAB 4: ประสิทธิภาพของแผนการจัดการเรียนรู้ (E1/E2) ---
+           # --- TAB 4: ประสิทธิภาพของแผนการจัดการเรียนรู้ (E1/E2) - เวอร์ชันเลือกคอลัมน์ได้ ---
     with tab4:
         st.subheader("📊 การคำนวณประสิทธิภาพของแผนการจัดการเรียนรู้ (E1/E2)")
         
         # ส่วนตั้งค่าคะแนนเต็ม
         col_set1, col_set2 = st.columns(2)
         with col_set1:
-            full_score_process = st.number_input("คะแนนเต็มระหว่างเรียน", value=70)
+            full_score_process = st.number_input("คะแนนเต็มระหว่างเรียน (E1)", value=70)
         with col_set2:
-            full_score_post = st.number_input("คะแนนเต็มหลังเรียน", value=30)
+            full_score_post = st.number_input("คะแนนเต็มหลังเรียน (E2)", value=30)
+
+        # ดึงตัวอย่างหัวคอลัมน์มาให้เลือก
+        # ใช้ข้อมูลห้องแรกเป็นเกณฑ์ในการดึงหัวตาราง
+        sample_room_start = room_indices[0]
+        sample_room_end = room_indices[1]
+        df_sample = df_raw.iloc[sample_room_start:sample_room_end].reset_index(drop=True)
+        # แถวที่ 1 มักจะเป็นหัวตาราง (ปรับเลขแถวได้)
+        column_options = [f"คอลัมน์ที่ {i}: {str(val)}" for i, val in enumerate(df_sample.iloc[1])]
+
+        col_sel1, col_sel2 = st.columns(2)
+        with col_sel1:
+            idx_e1 = st.selectbox("เลือกคอลัมน์ 'คะแนนระหว่างเรียน'", range(len(column_options)), index=17, format_func=lambda x: column_options[x])
+        with col_sel2:
+            idx_e2 = st.selectbox("เลือกคอลัมน์ 'คะแนนหลังเรียน'", range(len(column_options)), index=16, format_func=lambda x: column_options[x])
 
         if st.button("🧮 คำนวณค่า E1/E2"):
-            # ดึงข้อมูลนักเรียนทุกคนจากทุกห้องมาวมกัน
             all_process_scores = []
             all_post_scores = []
             
@@ -285,64 +298,30 @@ if excel_file:
                 df_students = df_room.iloc[2:].copy()
                 df_students = df_students[df_students.iloc[:, 1].astype(str).str.strip().str.isdigit()]
                 
-                # คะแนนระหว่างเรียน (อ้างอิงคอลัมน์ที่ 17 คือคะแนนเก็บ + สอบ)
-                # ในที่นี้สมมติว่า คอลัมน์ 17 คือระหว่างเรียน และ คอลัมน์ 18 (เกรด) เราจะหาคอลัมน์หลังเรียนแทน
-                # ครูโอมปรับ index คอลัมน์ [17] และ [คอลัมน์หลังเรียน] ตามจริงนะครับ
-                process_s = pd.to_numeric(df_students.iloc[:, 17], errors='coerce').dropna()
-                
-                # สมมติคะแนนหลังเรียนอยู่คอลัมน์สุดท้ายของข้อมูลนักเรียน (ครูโอมปรับแก้เลขคอลัมน์ได้)
-                # ในที่นี้ผมดึงคะแนนสอบปลายภาค (ถ้ามี) หรือใช้ Logic ที่ครูต้องการ
-                post_s = pd.to_numeric(df_students.iloc[:, 16], errors='coerce').dropna() # ตัวอย่างคอลัมน์ 16
+                # ดึงคะแนนตาม index ที่ครูเลือก
+                process_s = pd.to_numeric(df_students.iloc[:, idx_e1], errors='coerce').dropna()
+                post_s = pd.to_numeric(df_students.iloc[:, idx_e2], errors='coerce').dropna()
                 
                 all_process_scores.extend(process_s.tolist())
                 all_post_scores.extend(post_s.tolist())
 
             if all_process_scores and all_post_scores:
-                # คำนวณสถิติ E1 (ระหว่างเรียน)
                 n = len(all_process_scores)
                 mean_e1 = np.mean(all_process_scores)
                 sd_e1 = np.std(all_process_scores)
                 percent_e1 = (mean_e1 / full_score_process) * 100
 
-                # คำนวณสถิติ E2 (หลังเรียน)
                 mean_e2 = np.mean(all_post_scores)
                 sd_e2 = np.std(all_post_scores)
                 percent_e2 = (mean_e2 / full_score_post) * 100
 
-                # สร้างตารางตามรูปแบบที่ครูส่งมา
                 e_data = [
-                    {
-                        "คะแนน": "คะแนนระหว่างเรียน",
-                        "n": n,
-                        "คะแนนเต็ม": full_score_process,
-                        "X̄": f"{mean_e1:.2f}",
-                        "S.D.": f"{sd_e1:.2f}",
-                        "ร้อยละ": f"{percent_e1:.2f}",
-                        "E1 / E2": ""
-                    },
-                    {
-                        "คะแนน": "",
-                        "n": "",
-                        "คะแนนเต็ม": "",
-                        "X̄": "",
-                        "S.D.": "",
-                        "ร้อยละ": "",
-                        "E1 / E2": f"{percent_e1:.2f} / {percent_e2:.2f}"
-                    },
-                    {
-                        "คะแนน": "คะแนนการทดสอบหลังเรียน",
-                        "n": n,
-                        "คะแนนเต็ม": full_score_post,
-                        "X̄": f"{mean_e2:.2f}",
-                        "S.D.": f"{sd_e2:.2f}",
-                        "ร้อยละ": f"{percent_e2:.2f}",
-                        "E1 / E2": ""
-                    }
+                    {"คะแนน": "คะแนนระหว่างเรียน", "n": n, "คะแนนเต็ม": full_score_process, "X̄": f"{mean_e1:.2f}", "S.D.": f"{sd_e1:.2f}", "ร้อยละ": f"{percent_e1:.2f}", "E1 / E2": ""},
+                    {"คะแนน": "สรุปผลประสิทธิภาพ", "n": "", "คะแนนเต็ม": "", "X̄": "", "S.D.": "", "ร้อยละ": "", "E1 / E2": f"{percent_e1:.2f} / {percent_e2:.2f}"},
+                    {"คะแนน": "คะแนนการทดสอบหลังเรียน", "n": n, "คะแนนเต็ม": full_score_post, "X̄": f"{mean_e2:.2f}", "S.D.": f"{sd_e2:.2f}", "ร้อยละ": f"{percent_e2:.2f}", "E1 / E2": ""}
                 ]
                 
                 st.table(pd.DataFrame(e_data))
-                
-                # บทสรุปประสิทธิภาพ
-                st.success(f"📌 สรุป: แผนการจัดการเรียนรู้มีประสิทธิภาพ (E1/E2) เท่ากับ **{percent_e1:.2f} / {percent_e2:.2f}**")
+                st.success(f"📌 สรุป: แผนการสอนมีประสิทธิภาพ **{percent_e1:.2f} / {percent_e2:.2f}**")
             else:
-                st.error("ไม่พบข้อมูลคะแนนสำหรับคำนวณ กรุณาตรวจสอบคอลัมน์ใน Excel")
+                st.error("❌ ข้อมูลในคอลัมน์ที่เลือกไม่ใช่ตัวเลข หรือข้อมูลว่างเปล่า กรุณาเลือกคอลัมน์ใหม่")
